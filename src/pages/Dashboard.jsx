@@ -76,10 +76,6 @@ const Dashboard = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600">Monitor all RescueLink devices and alerts</p>
-            <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <h1 className="text-4xl font-bold text-blue-500">Tailwind Works 🎉</h1>
-    </div>
-
         </div>
         <div className="flex items-center space-x-2 text-sm text-gray-500">
           <Clock className="h-4 w-4" />
