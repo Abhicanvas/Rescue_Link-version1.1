@@ -162,13 +162,162 @@ const Admin = () => {
   );
 
   const SystemSettings = () => (
-    // (keep as-is — no TypeScript used here)
-    <div>...your existing SystemSettings code...</div>
+    <div className="space-y-6">
+      <h2 className="text-xl font-semibold text-gray-900">System Settings</h2>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Alert Configuration</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                SOS Alert Threshold (seconds)
+              </label>
+              <input
+                type="number"
+                defaultValue={30}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Low Battery Threshold (%)
+              </label>
+              <input
+                type="number"
+                defaultValue={20}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Vibration Sensitivity
+              </label>
+              <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <option>Low</option>
+                <option>Medium</option>
+                <option>High</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Network Configuration</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                LoRaWAN Gateway IP
+              </label>
+              <input
+                type="text"
+                defaultValue="192.168.1.100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Data Update Interval (seconds)
+              </label>
+              <input
+                type="number"
+                defaultValue={60}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Backup Server URL
+              </label>
+              <input
+                type="url"
+                placeholder="https://backup.rescuelink.com"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <button className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <Save className="h-4 w-4 mr-2" />
+          Save Settings
+        </button>
+      </div>
+    </div>
   );
 
   const DataManagement = () => (
-    // (keep as-is — no TypeScript used here)
-    <div>...your existing DataManagement code...</div>
+    <div className="space-y-6">
+      <h2 className="text-xl font-semibold text-gray-900">Data Management</h2>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Export Data</h3>
+          <p className="text-gray-600 mb-4">Download historical data for analysis and reporting.</p>
+          <div className="space-y-3">
+            <button className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+              <Download className="h-4 w-4 mr-2" />
+              Export Device Data (CSV)
+            </button>
+            <button className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+              <Download className="h-4 w-4 mr-2" />
+              Export Alert History (CSV)
+            </button>
+            <button className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+              <Download className="h-4 w-4 mr-2" />
+              Export Analytics Report (PDF)
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Import Data</h3>
+          <p className="text-gray-600 mb-4">Import device configurations and historical data.</p>
+          <div className="space-y-3">
+            <button className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+              <Upload className="h-4 w-4 mr-2" />
+              Import Device Configuration
+            </button>
+            <button className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+              <Upload className="h-4 w-4 mr-2" />
+              Import Historical Data
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Database Maintenance</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="text-center p-4 border border-gray-200 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">2.4 GB</div>
+            <div className="text-sm text-gray-600">Database Size</div>
+          </div>
+          <div className="text-center p-4 border border-gray-200 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">15,847</div>
+            <div className="text-sm text-gray-600">Total Records</div>
+          </div>
+          <div className="text-center p-4 border border-gray-200 rounded-lg">
+            <div className="text-2xl font-bold text-orange-600">7 days</div>
+            <div className="text-sm text-gray-600">Last Backup</div>
+          </div>
+        </div>
+        
+        <div className="mt-6 flex space-x-4">
+          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            Create Backup
+          </button>
+          <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+            Optimize Database
+          </button>
+          <button className="px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors">
+            Clean Old Data
+          </button>
+        </div>
+      </div>
+    </div>
   );
 
   const renderTabContent = () => {
