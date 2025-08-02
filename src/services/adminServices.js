@@ -420,3 +420,15 @@ export const authAPI = {
     return { data: { access_token: token } };
   },
 };
+
+async function fetchUserFullNameById(userId) {
+  try {
+    const response = await userAPI.getById(userId);
+    const user = response.data;
+    return user.full_name;
+  } catch (error) {
+    console.error('Failed to fetch user:', error);
+    return null;
+  }
+}
+
