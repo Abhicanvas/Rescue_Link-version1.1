@@ -823,7 +823,7 @@ const Admin = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                {["Device ID", "Site Name", "Device Name", "Assigned User", "Status", "Latitude", "Longitude", "Date", "Actions"].map(
+                {["Device ID" , "Device Name", "Assigned User", "Status", "Latitude", "Longitude", "Actions"].map(
                   (header) => (
                     <th
                       key={header}
@@ -839,15 +839,11 @@ const Admin = () => {
               {devices.map((device) => (
                 <tr key={device.id}>
                   <td className="px-6 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{device.device_id}</td>
-                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{device.site_name}</td>
                   <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{device.device_name}</td>
                   <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{device.user_id}</td>
                   <td className={`px-6 py-2 whitespace-nowrap text-sm ${device.status === "Active" ? "text-green-600" : "text-red-600"}`}>{device.status}</td>
                   <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{device.location.lat}</td>
                   <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{device.location.long}</td>
-                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">
-                    {device.created_at ? new Date(device.created_at).toLocaleString() : "N/A"}
-                  </td>
                   <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">
                     <button
                       onClick={() => startEditDevice(device)}
