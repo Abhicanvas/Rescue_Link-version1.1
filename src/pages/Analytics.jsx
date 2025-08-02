@@ -42,18 +42,21 @@ const Analytics = () => {
     loadData();
   }, [timeRange]);
 
+  // Calculate device status distribution
   const deviceStatusData = [
     { name: 'Active', value: devices.filter(d => d.device_status === 'Active').length, color: '#10B981' },
     { name: 'Disconnected', value: devices.filter(d => d.device_status === 'Disconnected').length, color: '#6B7280' },
     { name: 'Faulty', value: devices.filter(d => d.device_status === 'Faulty').length, color: '#EF4444' }
   ];
 
+  // Calculate battery level distribution
   const batteryDistribution = [
     { name: 'High (>70%)', value: devices.filter(d => d.battery_level > 70).length, color: '#10B981' },
     { name: 'Medium (30-70%)', value: devices.filter(d => d.battery_level >= 30 && d.battery_level <= 70).length, color: '#F59E0B' },
     { name: 'Low (<30%)', value: devices.filter(d => d.battery_level < 30).length, color: '#EF4444' }
   ];
 
+  // Calculate alert frequency data
   const alertFrequencyData = analyticsData.map(data => ({
     date: new Date(data.date).toLocaleDateString(),
     alerts: data.alerts,
@@ -77,11 +80,13 @@ const Analytics = () => {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
           <p className="text-gray-600">Insights and trends from RescueLink device data</p>
         </div>
+
         <select
           value={timeRange}
           onChange={(e) => setTimeRange(e.target.value)}
@@ -105,8 +110,10 @@ const Analytics = () => {
               <Activity className="h-6 w-6 text-blue-600" />
             </div>
           </div>
-          <div className="mt-4 text-sm text-green-600">
-            +{devices.filter(d => d.device_status === 'Active').length} active
+          <div className="mt-4">
+            <div className="text-sm text-green-600">
+              +{devices.filter(d => d.device_status === 'Active').length} active
+            </div>
           </div>
         </div>
 
@@ -122,8 +129,10 @@ const Analytics = () => {
               <AlertTriangle className="h-6 w-6 text-orange-600" />
             </div>
           </div>
-          <div className="mt-4 text-sm text-red-600">
-            {analyticsData.reduce((sum, d) => sum + d.incidents, 0)} incidents
+          <div className="mt-4">
+            <div className="text-sm text-red-600">
+              {analyticsData.reduce((sum, d) => sum + d.incidents, 0)} incidents
+            </div>
           </div>
         </div>
 
@@ -139,8 +148,10 @@ const Analytics = () => {
               <Battery className="h-6 w-6 text-green-600" />
             </div>
           </div>
-          <div className="mt-4 text-sm text-yellow-600">
-            {devices.filter(d => d.battery_level < 30).length} low battery
+          <div className="mt-4">
+            <div className="text-sm text-yellow-600">
+              {devices.filter(d => d.battery_level < 30).length} low battery
+            </div>
           </div>
         </div>
 
@@ -154,14 +165,17 @@ const Analytics = () => {
               <TrendingUp className="h-6 w-6 text-purple-600" />
             </div>
           </div>
-          <div className="mt-4 text-sm text-green-600">
-            +2% from last week
+          <div className="mt-4">
+            <div className="text-sm text-green-600">
+              +2% from last week
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Charts */}
+      {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Device Performance Over Time */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Device Performance</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -171,12 +185,25 @@ const Analytics = () => {
               <YAxis />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="activeDevices" stroke="#2563EB" strokeWidth={2} name="Active Devices" />
-              <Line type="monotone" dataKey="avgBattery" stroke="#10B981" strokeWidth={2} name="Avg Battery %" />
+              <Line 
+                type="monotone" 
+                dataKey="activeDevices" 
+                stroke="#2563EB" 
+                strokeWidth={2}
+                name="Active Devices"
+              />
+              <Line 
+                type="monotone" 
+                dataKey="avgBattery" 
+                stroke="#10B981" 
+                strokeWidth={2}
+                name="Avg Battery %"
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
+        {/* Alert Frequency */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Alert Frequency</h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -192,12 +219,20 @@ const Analytics = () => {
           </ResponsiveContainer>
         </div>
 
+        {/* Device Status Distribution */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Device Status Distribution</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
-              <Pie data={deviceStatusData} cx="50%" cy="50%" outerRadius={80} fill="#8884d8" dataKey="value"
-                label={({ name, value }) => `${name}: ${value}`}>
+              <Pie
+                data={deviceStatusData}
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+                label={({ name, value }) => `${name}: ${value}`}
+              >
                 {deviceStatusData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
@@ -207,12 +242,20 @@ const Analytics = () => {
           </ResponsiveContainer>
         </div>
 
+        {/* Battery Level Distribution */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Battery Level Distribution</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
-              <Pie data={batteryDistribution} cx="50%" cy="50%" outerRadius={80} fill="#8884d8" dataKey="value"
-                label={({ name, value }) => `${name}: ${value}`}>
+              <Pie
+                data={batteryDistribution}
+                cx="50%"
+                cy="50%"
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+                label={({ name, value }) => `${name}: ${value}`}
+              >
                 {batteryDistribution.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
@@ -223,7 +266,7 @@ const Analytics = () => {
         </div>
       </div>
 
-      {/* Table */}
+      {/* Detailed Analytics Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">Device Performance Summary</h3>
@@ -232,17 +275,29 @@ const Analytics = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Device ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Battery</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Update</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alerts</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Device ID
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Battery
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Last Update
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Alerts
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {devices.map((device) => (
                 <tr key={device.device_id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{device.device_id}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {device.device_id}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                       device.device_status === 'Active' ? 'bg-green-100 text-green-800' :

@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Search } from 'lucide-react';
+import { MapPin, Search, Layers } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import markerIconPng from 'leaflet/dist/images/marker-icon.png';
-import markerShadowPng from 'leaflet/dist/images/marker-shadow.png';
-
 import { api } from '../utils/api';
 import DeviceCard from '../components/DeviceCard';
-import './DeviceMap.css'; // << Add this
+
+// Fix for default marker icons in React-Leaflet
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
+import markerIcon from 'leaflet/dist/images/marker-icon.png';
+import markerShadow from 'leaflet/dist/images/marker-shadow.png';
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: markerIcon,
+  iconRetinaUrl: markerIcon2x,
+  shadowUrl: markerShadow,
+});
 
 const DeviceMap = () => {
   const [devices, setDevices] = useState([]);
@@ -37,68 +45,114 @@ const DeviceMap = () => {
   useEffect(() => {
     let filtered = devices;
 
+    // Filter by status
     if (filterStatus !== 'all') {
       filtered = filtered.filter(device => device.device_status === filterStatus);
     }
 
+    // Filter by search term
     if (searchTerm) {
-      filtered = filtered.filter(device =>
+      filtered = filtered.filter(device => 
         device.device_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        device.site_name?.toLowerCase().includes(searchTerm.toLowerCase())
+        (device.site_name && device.site_name.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
     setFilteredDevices(filtered);
   }, [devices, filterStatus, searchTerm]);
 
-  const groupedBySite = filteredDevices.reduce((acc, device) => {
-    const site = device.site_name || 'Unknown';
-    if (!acc[site]) acc[site] = [];
-    acc[site].push(device);
-    return acc;
-  }, {});
+  // Create custom markers based on device status
+  const createCustomIcon = (device) => {
+    const getColor = (status) => {
+      switch (status) {
+        case 'Active': return '#10b981'; // green-500
+        case 'Disconnected': return '#6b7280'; // gray-500
+        case 'Faulty': return '#ef4444'; // red-500
+        default: return '#6b7280';
+      }
+    };
 
-  const leafletIcon = new L.Icon({
-    iconUrl: markerIconPng,
-    shadowUrl: markerShadowPng,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
-  });
+    const color = getColor(device.device_status);
+    const hasAlert = device.SOS_triggered || device.accident_reported;
+
+    return new L.DivIcon({
+      className: 'custom-div-icon',
+      html: `
+        <div style="position: relative;">
+          <div style="
+            background-color: ${color};
+            width: 20px;
+            height: 20px;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+          "></div>
+          ${hasAlert ? `
+            <div style="
+              position: absolute;
+              top: -2px;
+              right: -2px;
+              width: 8px;
+              height: 8px;
+              background-color: #dc2626;
+              border: 1px solid white;
+              border-radius: 50%;
+              animation: pulse 2s infinite;
+            "></div>
+          ` : ''}
+        </div>
+      `,
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+    });
+  };
 
   if (loading) {
     return (
-      <div className="loading-container">
-        <div className="loading-title"></div>
-        <div className="loading-map"></div>
+      <div className="p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-300 rounded w-48 mb-6"></div>
+          <div className="h-96 bg-gray-300 rounded"></div>
+        </div>
       </div>
     );
   }
 
-  return (
-    <div className="device-container">
-      <div className="device-header">
-        <div>
-          <h1 className="device-title">Device Map</h1>
-          <p className="device-subtitle">Live locations and status of RescueLink devices</p>
-        </div>
+  // Calculate center position based on devices or use default
+  const centerPosition = devices.length > 0
+    ? [
+        devices.reduce((sum, d) => sum + d.location.lat, 0) / devices.length,
+        devices.reduce((sum, d) => sum + d.location.long, 0) / devices.length
+      ]
+    : [23.8103, 90.4125]; // Default to Dhaka, Bangladesh
 
-        <div className="device-controls">
-          <div className="search-container">
-            <Search className="search-icon" />
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Device Map</h1>
+          <p className="text-gray-600">Live locations and status of all RescueLink devices</p>
+        </div>
+        
+        <div className="flex items-center space-x-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search devices..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
             />
           </div>
+          
+          {/* Filter */}
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="filter-select"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="all">All Status</option>
             <option value="Active">Active</option>
@@ -108,87 +162,166 @@ const DeviceMap = () => {
         </div>
       </div>
 
-      <div className="map-wrapper">
-        <MapContainer center={[20.5937, 78.9629]} zoom={4} style={{ height: '500px', width: '100%' }}>
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          {Object.entries(groupedBySite).map(([site, siteDevices]) => {
-            const firstDevice = siteDevices[0];
-            return (
-              <Marker
-                key={site}
-                position={[firstDevice.location.lat, firstDevice.location.long]}
-                icon={leafletIcon}
-                eventHandlers={{
-                  click: () => {
-                    const el = document.getElementById(`site-${site}`);
-                    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  },
-                }}
-              >
-                <Popup>
-                  <strong>{site}</strong><br />
-                  Devices: {siteDevices.length}
-                </Popup>
-              </Marker>
-            );
-          })}
-        </MapContainer>
-      </div>
-      <div className="device-card">
-         {Object.entries(groupedBySite).map(([site, siteDevices]) => (
-        <div key={site} id={`site-${site}`} className="site-section">
-          <h2 className="site-title">{site} ({siteDevices.length} devices)</h2>
-          <div className="device-card-grid">
-            {siteDevices.map((device) => (
-              <div key={device.device_id}>
-                <DeviceCard
-                  device={device}
-                  onClick={() => setSelectedDevice(device)}
-                />
+      {/* Map Container */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="relative">
+          {/* OpenStreetMap */}
+          <div style={{ height: '400px', width: '100%' }}>
+            <MapContainer
+              center={centerPosition}
+              zoom={10}
+              style={{ height: '100%', width: '100%' }}
+              zoomControl={true}
+            >
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              />
+              
+              {filteredDevices.map(device => (
+                <Marker
+                  key={device.device_id}
+                  position={[device.location.lat, device.location.long]}
+                  icon={createCustomIcon(device)}
+                  eventHandlers={{
+                    click: () => setSelectedDevice(device),
+                  }}
+                >
+                  <Popup>
+                    <div className="p-2">
+                      <div className="font-semibold text-lg mb-2">{device.device_id}</div>
+                      <div className="space-y-1 text-sm">
+                        <div>Status: <span className={`font-medium ${
+                          device.device_status === 'Active' ? 'text-green-600' :
+                          device.device_status === 'Faulty' ? 'text-red-600' : 'text-gray-600'
+                        }`}>{device.device_status}</span></div>
+                        <div>Battery: {device.battery_level}%</div>
+                        {device.site_name && <div>Site: {device.site_name}</div>}
+                        {device.SOS_triggered && <div className="text-red-600 font-medium">🚨 SOS TRIGGERED</div>}
+                        {device.accident_reported && <div className="text-red-600 font-medium">⚠️ ACCIDENT DETECTED</div>}
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+            </MapContainer>
+          </div>
+
+          {/* Legend */}
+          <div className="absolute bottom-4 left-4 bg-white p-3 rounded-lg shadow-lg z-[1000]">
+            <h4 className="text-sm font-medium text-gray-900 mb-2">Status Legend</h4>
+            <div className="space-y-1">
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
+                <span className="text-xs text-gray-600">Active</span>
               </div>
-            ))}
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-gray-500 rounded-full mr-2"></div>
+                <span className="text-xs text-gray-600">Disconnected</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
+                <span className="text-xs text-gray-600">Faulty</span>
+              </div>
+              <div className="flex items-center">
+                <div className="w-2 h-2 bg-red-600 rounded-full mr-3 animate-pulse"></div>
+                <span className="text-xs text-gray-600">Alert</span>
+              </div>
+            </div>
           </div>
         </div>
-      ))}
+
+        {/* Device List */}
+        <div className="p-6 border-t border-gray-200">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Devices ({filteredDevices.length})
+            </h3>
+            <div className="text-sm text-gray-500">
+              {devices.filter(d => d.device_status === 'Active').length} active,{' '}
+              {devices.filter(d => d.device_status === 'Disconnected').length} disconnected,{' '}
+              {devices.filter(d => d.device_status === 'Faulty').length} faulty
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredDevices.map((device) => (
+              <DeviceCard 
+                key={device.device_id}
+                device={device}
+                onClick={() => setSelectedDevice(device)}
+              />
+            ))}
+          </div>
+          
+          {filteredDevices.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p>No devices found matching the current filters</p>
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Device Detail Modal */}
       {selectedDevice && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h2 className="modal-title">Device Details: {selectedDevice.device_id}</h2>
-              <button
-                onClick={() => setSelectedDevice(null)}
-                className="modal-close"
-              >
-                ✕
-              </button>
-            </div>
-
-            <DeviceCard device={selectedDevice} />
-
-            <div className="modal-grid">
-              <div className="modal-section">
-                <h4 className="section-title">Sensor Data</h4>
-                <div>Vibration: {selectedDevice.vibration_intensity.toFixed(2)}</div>
-                <div>Tilt X: {selectedDevice.tilt_x.toFixed(2)}°</div>
-                <div>Tilt Y: {selectedDevice.tilt_y.toFixed(2)}°</div>
-                <div>Tilt Z: {selectedDevice.tilt_z.toFixed(2)}°</div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Device Details: {selectedDevice.device_id}
+                </h2>
+                <button
+                  onClick={() => setSelectedDevice(null)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors text-xl"
+                  aria-label="Close device details"
+                >
+                  ✕
+                </button>
               </div>
-              <div className="modal-section">
-                <h4 className="section-title">Status</h4>
-                <div>Battery: {selectedDevice.battery_level}%</div>
-                <div>Actuator: {selectedDevice.actuator_status ? 'Active' : 'Inactive'}</div>
-                <div>SOS: {selectedDevice.SOS_triggered ? 'TRIGGERED' : 'Normal'}</div>
-                <div>Accident: {selectedDevice.accident_reported ? 'DETECTED' : 'None'}</div>
+              
+              <DeviceCard device={selectedDevice} />
+              
+              <div className="mt-6 grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-medium text-gray-900 mb-2">Sensor Data</h4>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div>Vibration: {selectedDevice.vibration_intensity?.toFixed(2) || 'N/A'}</div>
+                    <div>Tilt X: {selectedDevice.tilt_x?.toFixed(2) || 'N/A'}°</div>
+                    <div>Tilt Y: {selectedDevice.tilt_y?.toFixed(2) || 'N/A'}°</div>
+                    <div>Tilt Z: {selectedDevice.tilt_z?.toFixed(2) || 'N/A'}°</div>
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-medium text-gray-900 mb-2">Status</h4>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div>Battery: {selectedDevice.battery_level}%</div>
+                    <div>Actuator: {selectedDevice.actuator_status ? 'Active' : 'Inactive'}</div>
+                    <div>SOS: {selectedDevice.SOS_triggered ? 'TRIGGERED' : 'Normal'}</div>
+                    <div>Accident: {selectedDevice.accident_reported ? 'DETECTED' : 'None'}</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Add CSS for pulse animation */}
+      <style jsx>{`
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.5;
+          }
+        }
+      `}</style>
     </div>
   );
 };
 
 export default DeviceMap;
-

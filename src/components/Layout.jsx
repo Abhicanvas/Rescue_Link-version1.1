@@ -6,26 +6,53 @@ import {
   BarChart3,
   AlertTriangle,
   Settings,
-  Users,
+  Shield,
   Menu,
   X,
   Bell,
-  Search
+  Search,
+  Lock,
+  Zap
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const userRole = localStorage.getItem('userRole') || 'user';
 
-  const navigation = [
-    { name: 'Dashboard', href: '/', icon: Home },
-    { name: 'Device Map', href: '/devices', icon: Map },
-    { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-    { name: 'Alerts', href: '/alerts', icon: AlertTriangle },
-    { name: 'Admin', href: '/admin', icon: Settings }
-  ];
+  const getNavigation = () => {
+    const baseNav = [
+      { name: 'Dashboard', href: '/', icon: Home }
+    ];
 
-  const isActive = (path) => location.pathname === path;
+    if (userRole === 'admin') {
+      return [
+        ...baseNav,
+        { name: 'Device Map', href: '/devices', icon: Map },
+        { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+        { name: 'Alerts', href: '/alerts', icon: AlertTriangle },
+        { name: 'SOS Trigger', href: '/sos-trigger', icon: Zap },
+        { name: 'Admin Lock', href: '/admin-lock', icon: Lock },
+        { name: 'Admin', href: '/admin', icon: Settings }
+      ];
+    } else if (userRole === 'operator') {
+      return [
+        ...baseNav,
+        { name: 'Device Map', href: '/devices', icon: Map },
+        { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+        { name: 'Alerts', href: '/alerts', icon: AlertTriangle },
+        { name: 'SOS Trigger', href: '/sos-trigger', icon: Zap }
+      ];
+    } else {
+      return baseNav; // User only sees Dashboard
+    }
+  };
+
+  const navigation = getNavigation();
+
+  const isActive = (path) => {
+    return location.pathname === path;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -38,12 +65,17 @@ const Layout = ({ children }) => {
       )}
 
       {/* Sidebar */}
-      <div className={`
-        fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-      `}>
+      <div
+        className={`
+          fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-          <h1 className="text-xl font-bold text-blue-600">RescueLink</h1>
+          <div className="flex items-center">
+            <Shield className="h-8 w-8 text-blue-600 mr-2" />
+            <h1 className="text-xl font-bold text-blue-600">RescueLink</h1>
+          </div>
           <button
             onClick={() => setSidebarOpen(false)}
             className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600"
@@ -77,13 +109,22 @@ const Layout = ({ children }) => {
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center">
-                <Users className="h-4 w-4 text-white" />
+              <div
+                className={`h-8 w-8 rounded-full flex items-center justify-center ${
+                  userRole === 'admin' ? 'bg-purple-500' :
+                  userRole === 'operator' ? 'bg-blue-500' : 'bg-green-500'
+                }`}
+              >
+                <Shield className="h-4 w-4 text-white" />
               </div>
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-gray-700">Admin User</p>
-              <p className="text-xs text-gray-500">admin@rescuelink.com</p>
+              <p className="text-sm font-medium text-gray-700">
+                {localStorage.getItem('userEmail')?.split('@')[0] || 'User'}
+              </p>
+              <p className="text-xs text-gray-500 capitalize">
+                {userRole} • {localStorage.getItem('userEmail') || 'user@rescuelink.com'}
+              </p>
             </div>
           </div>
         </div>
@@ -126,6 +167,20 @@ const Layout = ({ children }) => {
                 <div className="h-2 w-2 bg-green-500 rounded-full"></div>
                 <span className="text-sm text-gray-600">System Online</span>
               </div>
+
+              <div className="h-6 w-px bg-gray-300"></div>
+
+              <button
+                onClick={() => {
+                  localStorage.removeItem('isAuthenticated');
+                  localStorage.removeItem('userEmail');
+                  localStorage.removeItem('userRole');
+                  window.location.href = '/login';
+                }}
+                className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                Logout
+              </button>
             </div>
           </div>
         </header>

@@ -9,6 +9,9 @@ import {
   XCircle
 } from 'lucide-react';
 
+// No TypeScript: remove interface and type annotations
+// DeviceCard expects { device, onClick } as props
+
 const DeviceCard = ({ device, onClick }) => {
   const getStatusColor = (status) => {
     switch (status) {

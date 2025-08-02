@@ -1,3 +1,5 @@
+
+
 export const mockDevices = [
   {
     device_id: 'RLK001',

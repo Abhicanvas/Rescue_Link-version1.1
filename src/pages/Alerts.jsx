@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import {
-  AlertTriangle,
-  Filter,
-  Download,
-  CheckCircle,
+import { 
+  AlertTriangle, 
+  Filter, 
+  Download, 
+  CheckCircle, 
   Clock,
-  Search,
+  Search
 } from 'lucide-react';
 import { api } from '../utils/api';
 import AlertCard from '../components/AlertCard';
@@ -38,25 +38,28 @@ const Alerts = () => {
   useEffect(() => {
     let filtered = alerts;
 
+    // Filter by severity
     if (filterSeverity !== 'all') {
-      filtered = filtered.filter((alert) => alert.severity === filterSeverity);
+      filtered = filtered.filter(alert => alert.severity === filterSeverity);
     }
 
+    // Filter by type
     if (filterType !== 'all') {
-      filtered = filtered.filter((alert) => alert.type === filterType);
+      filtered = filtered.filter(alert => alert.type === filterType);
     }
 
+    // Filter by status
     if (filterStatus !== 'all') {
       const isResolved = filterStatus === 'resolved';
-      filtered = filtered.filter((alert) => alert.resolved_status === isResolved);
+      filtered = filtered.filter(alert => alert.resolved_status === isResolved);
     }
 
+    // Filter by search term
     if (searchTerm) {
-      filtered = filtered.filter(
-        (alert) =>
-          alert.device_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          alert.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          alert.type.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(alert => 
+        alert.device_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        alert.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        alert.type.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -66,45 +69,35 @@ const Alerts = () => {
   const handleResolveAlert = async (alertId) => {
     try {
       await api.resolveAlert(alertId);
-      setAlerts((prev) =>
-        prev.map((alert) =>
-          alert.alert_id === alertId
-            ? { ...alert, resolved_status: true }
-            : alert
-        )
-      );
+      setAlerts(prev => prev.map(alert => 
+        alert.alert_id === alertId 
+          ? { ...alert, resolved_status: true }
+          : alert
+      ));
     } catch (error) {
       console.error('Error resolving alert:', error);
     }
   };
 
   const exportAlerts = () => {
-    const csvContent =
-      'data:text/csv;charset=utf-8,' +
-      'Alert ID,Device ID,Type,Severity,Message,Timestamp,Status\n' +
-      filteredAlerts
-        .map(
-          (alert) =>
-            `${alert.alert_id},${alert.device_id},${alert.type},${alert.severity},"${alert.message}",${alert.timestamp},${
-              alert.resolved_status ? 'Resolved' : 'Active'
-            }`
-        )
-        .join('\n');
+    const csvContent = "data:text/csv;charset=utf-8," + 
+      "Alert ID,Device ID,Type,Severity,Message,Timestamp,Status\n" +
+      filteredAlerts.map(alert => 
+        `${alert.alert_id},${alert.device_id},${alert.type},${alert.severity},"${alert.message}",${alert.timestamp},${alert.resolved_status ? 'Resolved' : 'Active'}`
+      ).join("\n");
 
     const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', 'rescuelink_alerts.csv');
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "rescuelink_alerts.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const urgentAlerts = filteredAlerts.filter(
-    (a) => !a.resolved_status && a.severity === 'High'
-  );
-  const activeAlerts = filteredAlerts.filter((a) => !a.resolved_status);
-  const resolvedAlerts = filteredAlerts.filter((a) => a.resolved_status);
+  const urgentAlerts = filteredAlerts.filter(a => !a.resolved_status && a.severity === 'High');
+  const activeAlerts = filteredAlerts.filter(a => !a.resolved_status);
+  const resolvedAlerts = filteredAlerts.filter(a => a.resolved_status);
 
   if (loading) {
     return (
@@ -127,11 +120,9 @@ const Alerts = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Alert Management</h1>
-          <p className="text-gray-600">
-            Monitor and manage all system alerts and incidents
-          </p>
+          <p className="text-gray-600">Monitor and manage all system alerts and incidents</p>
         </div>
-
+        
         <button
           onClick={exportAlerts}
           className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
@@ -143,7 +134,6 @@ const Alerts = () => {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* Urgent */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -156,7 +146,6 @@ const Alerts = () => {
           </div>
         </div>
 
-        {/* Active */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -169,7 +158,6 @@ const Alerts = () => {
           </div>
         </div>
 
-        {/* Resolved */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -182,7 +170,6 @@ const Alerts = () => {
           </div>
         </div>
 
-        {/* Total */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -211,7 +198,7 @@ const Alerts = () => {
               />
             </div>
           </div>
-
+          
           <select
             value={filterSeverity}
             onChange={(e) => setFilterSeverity(e.target.value)}
@@ -222,7 +209,7 @@ const Alerts = () => {
             <option value="Medium">Medium</option>
             <option value="Low">Low</option>
           </select>
-
+          
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
@@ -234,7 +221,7 @@ const Alerts = () => {
             <option value="Low Battery">Low Battery</option>
             <option value="Device Fault">Device Fault</option>
           </select>
-
+          
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
@@ -251,6 +238,7 @@ const Alerts = () => {
       <div className="space-y-4">
         {filteredAlerts.length > 0 ? (
           <>
+            {/* Urgent Alerts Section */}
             {urgentAlerts.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold text-red-600 mb-4 flex items-center">
@@ -259,9 +247,9 @@ const Alerts = () => {
                 </h2>
                 <div className="space-y-4">
                   {urgentAlerts.map((alert) => (
-                    <AlertCard
-                      key={alert.alert_id}
-                      alert={alert}
+                    <AlertCard 
+                      key={alert.alert_id} 
+                      alert={alert} 
                       onResolve={handleResolveAlert}
                     />
                   ))}
@@ -269,15 +257,16 @@ const Alerts = () => {
               </div>
             )}
 
+            {/* All Alerts Section */}
             <div>
               <h2 className="text-lg font-semibold text-gray-900 mb-4">
                 All Alerts ({filteredAlerts.length})
               </h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {filteredAlerts.map((alert) => (
-                  <AlertCard
-                    key={alert.alert_id}
-                    alert={alert}
+                  <AlertCard 
+                    key={alert.alert_id} 
+                    alert={alert} 
                     onResolve={handleResolveAlert}
                   />
                 ))}

@@ -7,6 +7,8 @@ import {
   CheckCircle
 } from 'lucide-react';
 
+// Remove all TypeScript types and interfaces
+
 const AlertCard = ({ alert, onResolve }) => {
   const getSeverityColor = (severity) => {
     switch (severity) {
