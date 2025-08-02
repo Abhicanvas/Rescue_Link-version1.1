@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { useWebSocket } from '../hooks/useWebSocket';
+import { useNotification } from './NotificationProvider';
 import {
   Home,
   Map,
@@ -12,13 +15,19 @@ import {
   Bell,
   Search,
   Lock,
-  Zap
+  Zap,
+  LogOut,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
-  const userRole = localStorage.getItem('userRole') || 'user';
+  const { user, logout } = useAuth();
+  const { isConnected } = useWebSocket();
+  const { success, error } = useNotification();
+  const userRole = user?.role || 'user';
 
   const getNavigation = () => {
     const baseNav = [
@@ -120,10 +129,10 @@ const Layout = ({ children }) => {
             </div>
             <div className="ml-3">
               <p className="text-sm font-medium text-gray-700">
-                {localStorage.getItem('userEmail')?.split('@')[0] || 'User'}
+                {user?.name || user?.email?.split('@')[0] || 'User'}
               </p>
               <p className="text-xs text-gray-500 capitalize">
-                {userRole} • {localStorage.getItem('userEmail') || 'user@rescuelink.com'}
+                {userRole} • {user?.email || 'user@rescuelink.com'}
               </p>
             </div>
           </div>
@@ -164,21 +173,33 @@ const Layout = ({ children }) => {
               <div className="h-6 w-px bg-gray-300"></div>
 
               <div className="flex items-center space-x-2">
-                <div className="h-2 w-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-gray-600">System Online</span>
+                {isConnected ? (
+                  <>
+                    <Wifi className="h-4 w-4 text-green-500" />
+                    <span className="text-sm text-gray-600">Connected</span>
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="h-4 w-4 text-red-500" />
+                    <span className="text-sm text-gray-600">Disconnected</span>
+                  </>
+                )}
               </div>
 
               <div className="h-6 w-px bg-gray-300"></div>
 
               <button
-                onClick={() => {
-                  localStorage.removeItem('isAuthenticated');
-                  localStorage.removeItem('userEmail');
-                  localStorage.removeItem('userRole');
-                  window.location.href = '/login';
+                onClick={async () => {
+                  try {
+                    await logout();
+                    success('Logged out successfully');
+                  } catch (err) {
+                    error('Logout failed');
+                  }
                 }}
-                className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                className="flex items-center text-sm text-gray-600 hover:text-gray-900 transition-colors"
               >
+                <LogOut className="h-4 w-4 mr-1" />
                 Logout
               </button>
             </div>

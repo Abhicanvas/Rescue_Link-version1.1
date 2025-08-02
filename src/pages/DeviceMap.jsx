@@ -73,7 +73,7 @@ const DeviceMap = () => {
     };
 
     const color = getColor(device.device_status);
-    const hasAlert = device.SOS_triggered || device.accident_reported;
+    const hasAlert = device.SOS_triggered || device.accident_reported || device.telemetry?.sos_flag === 1;
 
     return new L.DivIcon({
       className: 'custom-div-icon',
@@ -118,11 +118,12 @@ const DeviceMap = () => {
     );
   }
 
-  // Calculate center position based on devices or use default
-  const centerPosition = devices.length > 0
+  // Calculate center position based on devices with location data or use default
+  const devicesWithLocation = devices.filter(d => d.location && d.location.lat && d.location.long);
+  const centerPosition = devicesWithLocation.length > 0
     ? [
-        devices.reduce((sum, d) => sum + d.location.lat, 0) / devices.length,
-        devices.reduce((sum, d) => sum + d.location.long, 0) / devices.length
+        devicesWithLocation.reduce((sum, d) => sum + d.location.lat, 0) / devicesWithLocation.length,
+        devicesWithLocation.reduce((sum, d) => sum + d.location.long, 0) / devicesWithLocation.length
       ]
     : [23.8103, 90.4125]; // Default to Dhaka, Bangladesh
 
@@ -178,7 +179,8 @@ const DeviceMap = () => {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               />
               
-              {filteredDevices.map(device => (
+              {/* Show markers only for devices with location data */}
+              {filteredDevices.filter(device => device.location && device.location.lat && device.location.long).map(device => (
                 <Marker
                   key={device.device_id}
                   position={[device.location.lat, device.location.long]}
@@ -194,10 +196,10 @@ const DeviceMap = () => {
                         <div>Status: <span className={`font-medium ${
                           device.device_status === 'Active' ? 'text-green-600' :
                           device.device_status === 'Faulty' ? 'text-red-600' : 'text-gray-600'
-                        }`}>{device.device_status}</span></div>
-                        <div>Battery: {device.battery_level}%</div>
-                        {device.site_name && <div>Site: {device.site_name}</div>}
-                        {device.SOS_triggered && <div className="text-red-600 font-medium">🚨 SOS TRIGGERED</div>}
+                        }`}>{device.device_status || 'Unknown'}</span></div>
+                        <div>Battery: {device.telemetry?.battery || device.battery_level || 'N/A'}%</div>
+                        {(device.site_name || device.device_name) && <div>Site: {device.site_name || device.device_name}</div>}
+                        {(device.SOS_triggered || device.sos_flag === 1 || device.telemetry?.sos_flag === 1) && <div className="text-red-600 font-medium">🚨 SOS TRIGGERED</div>}
                         {device.accident_reported && <div className="text-red-600 font-medium">⚠️ ACCIDENT DETECTED</div>}
                       </div>
                     </div>
@@ -241,6 +243,11 @@ const DeviceMap = () => {
               {devices.filter(d => d.device_status === 'Active').length} active,{' '}
               {devices.filter(d => d.device_status === 'Disconnected').length} disconnected,{' '}
               {devices.filter(d => d.device_status === 'Faulty').length} faulty
+              {devicesWithLocation.length !== devices.length && (
+                <span className="block mt-1 text-orange-600">
+                  {devicesWithLocation.length} of {devices.length} devices have location data
+                </span>
+              )}
             </div>
           </div>
           
@@ -287,19 +294,19 @@ const DeviceMap = () => {
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-medium text-gray-900 mb-2">Sensor Data</h4>
                   <div className="space-y-2 text-sm text-gray-600">
-                    <div>Vibration: {selectedDevice.vibration_intensity?.toFixed(2) || 'N/A'}</div>
-                    <div>Tilt X: {selectedDevice.tilt_x?.toFixed(2) || 'N/A'}°</div>
-                    <div>Tilt Y: {selectedDevice.tilt_y?.toFixed(2) || 'N/A'}°</div>
-                    <div>Tilt Z: {selectedDevice.tilt_z?.toFixed(2) || 'N/A'}°</div>
+                    <div>Vibration: {selectedDevice.telemetry?.vibration?.toFixed(2) || selectedDevice.vibration_intensity?.toFixed(2) || 'N/A'}</div>
+                    <div>Tilt X: {selectedDevice.telemetry?.tilt_x?.toFixed(2) || selectedDevice.tilt_x?.toFixed(2) || 'N/A'}°</div>
+                    <div>Tilt Y: {selectedDevice.telemetry?.tilt_y?.toFixed(2) || selectedDevice.tilt_y?.toFixed(2) || 'N/A'}°</div>
+                    <div>Tilt Z: {selectedDevice.telemetry?.tilt_z?.toFixed(2) || selectedDevice.tilt_z?.toFixed(2) || 'N/A'}°</div>
                   </div>
                 </div>
                 
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-medium text-gray-900 mb-2">Status</h4>
                   <div className="space-y-2 text-sm text-gray-600">
-                    <div>Battery: {selectedDevice.battery_level}%</div>
-                    <div>Actuator: {selectedDevice.actuator_status ? 'Active' : 'Inactive'}</div>
-                    <div>SOS: {selectedDevice.SOS_triggered ? 'TRIGGERED' : 'Normal'}</div>
+                    <div>Battery: {selectedDevice.telemetry?.battery || selectedDevice.battery_level || 'N/A'}%</div>
+                    <div>Actuator: {selectedDevice.telemetry?.actuator_status !== undefined ? (selectedDevice.telemetry?.actuator_status ? 'Active' : 'Inactive') : selectedDevice.actuator_status !== undefined ? (selectedDevice.actuator_status ? 'Active' : 'Inactive') : 'N/A'}</div>
+                    <div>SOS: {selectedDevice.SOS_triggered || selectedDevice.telemetry?.sos_flag === 1 ? 'TRIGGERED' : 'Normal'}</div>
                     <div>Accident: {selectedDevice.accident_reported ? 'DETECTED' : 'None'}</div>
                   </div>
                 </div>

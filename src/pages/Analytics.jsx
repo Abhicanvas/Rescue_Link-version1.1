@@ -51,9 +51,9 @@ const Analytics = () => {
 
   // Calculate battery level distribution
   const batteryDistribution = [
-    { name: 'High (>70%)', value: devices.filter(d => d.battery_level > 70).length, color: '#10B981' },
-    { name: 'Medium (30-70%)', value: devices.filter(d => d.battery_level >= 30 && d.battery_level <= 70).length, color: '#F59E0B' },
-    { name: 'Low (<30%)', value: devices.filter(d => d.battery_level < 30).length, color: '#EF4444' }
+    { name: 'High (>70%)', value: devices.filter(d => (d.telemetry?.battery || d.battery_level || 0) > 70).length, color: '#10B981' },
+    { name: 'Medium (30-70%)', value: devices.filter(d => { const battery = d.telemetry?.battery || d.battery_level || 0; return battery >= 30 && battery <= 70; }).length, color: '#F59E0B' },
+    { name: 'Low (<30%)', value: devices.filter(d => (d.telemetry?.battery || d.battery_level || 0) < 30).length, color: '#EF4444' }
   ];
 
   // Calculate alert frequency data
@@ -141,7 +141,7 @@ const Analytics = () => {
             <div>
               <p className="text-sm font-medium text-gray-600">Avg Battery</p>
               <p className="text-2xl font-bold text-green-600">
-                {Math.round(devices.reduce((sum, d) => sum + d.battery_level, 0) / devices.length)}%
+                {Math.round(devices.reduce((sum, d) => sum + (d.telemetry?.battery || d.battery_level || 0), 0) / devices.length)}%
               </p>
             </div>
             <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -150,7 +150,7 @@ const Analytics = () => {
           </div>
           <div className="mt-4">
             <div className="text-sm text-yellow-600">
-              {devices.filter(d => d.battery_level < 30).length} low battery
+              {devices.filter(d => (d.telemetry?.battery || d.battery_level || 0) < 30).length} low battery
             </div>
           </div>
         </div>
@@ -312,13 +312,13 @@ const Analytics = () => {
                       <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
                         <div 
                           className={`h-2 rounded-full ${
-                            device.battery_level > 50 ? 'bg-green-500' :
-                            device.battery_level > 20 ? 'bg-yellow-500' : 'bg-red-500'
+                            (device.telemetry?.battery || device.battery_level || 0) > 50 ? 'bg-green-500' :
+                            (device.telemetry?.battery || device.battery_level || 0) > 20 ? 'bg-yellow-500' : 'bg-red-500'
                           }`}
-                          style={{ width: `${device.battery_level}%` }}
+                          style={{ width: `${device.telemetry?.battery || device.battery_level || 0}%` }}
                         />
                       </div>
-                      <span>{device.battery_level}%</span>
+                      <span>{device.telemetry?.battery || device.battery_level || 0}%</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

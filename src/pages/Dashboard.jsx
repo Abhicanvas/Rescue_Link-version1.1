@@ -10,19 +10,32 @@ import {
   Clock
 } from 'lucide-react';
 import { api } from '../utils/api';
+import { useAuth } from '../hooks/useAuth';
+import { useDeviceUpdates, useAlertUpdates } from '../hooks/useWebSocket';
+import { useNotification } from '../components/NotificationProvider';
 import DeviceCard from '../components/DeviceCard';
 import AlertCard from '../components/AlertCard';
+import LoadingSpinner, { SkeletonCard } from '../components/LoadingSpinner';
 
 const Dashboard = () => {
   const [devices, setDevices] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const userRole = localStorage.getItem('userRole') || 'user';
-  const userEmail = localStorage.getItem('userEmail') || '';
+  const [error, setError] = useState(null);
+  const { user } = useAuth();
+  const { deviceData } = useDeviceUpdates();
+  const { alerts: realtimeAlerts, newAlert } = useAlertUpdates();
+  const { success, error: notifyError } = useNotification();
+  
+  const userRole = user?.role || 'user';
+  const userEmail = user?.email || '';
 
   useEffect(() => {
     const loadData = async () => {
       try {
+        setLoading(true);
+        setError(null);
+        
         const [devicesData, alertsData] = await Promise.all([
           api.getDevices(),
           api.getAlerts()
@@ -30,10 +43,12 @@ const Dashboard = () => {
         
         // Filter data based on user role
         if (userRole === 'user') {
-          // For user, show only their assigned device (mock: first device for demo)
-          const userDevice = devicesData.filter(d => d.device_id === 'RLK001'); // Mock user device
-          const userAlerts = alertsData.filter(a => a.device_id === 'RLK001');
-          setDevices(userDevice);
+          // For user, show only their assigned devices
+          const userDevices = devicesData.filter(d => d.assigned_user === userEmail);
+          const userAlerts = alertsData.filter(a => 
+            userDevices.some(device => device.device_id === a.device_id)
+          );
+          setDevices(userDevices);
           setAlerts(userAlerts);
         } else {
           // Admin and Operator see all devices
@@ -42,28 +57,52 @@ const Dashboard = () => {
         }
       } catch (error) {
         console.error('Error loading dashboard data:', error);
+        setError(error.message);
+        notifyError('Failed to load dashboard data');
       } finally {
         setLoading(false);
       }
     };
 
     loadData();
+  }, [userRole, userEmail]);
 
-    // Subscribe to real-time updates
-    const unsubscribe = api.subscribeToRealTimeUpdates((update) => {
-      console.log('Real-time update:', update);
-      // Handle real-time updates here
-    });
+  // Handle real-time device updates
+  useEffect(() => {
+    if (deviceData) {
+      setDevices(prev => prev.map(device => 
+        device.device_id === deviceData.device_id 
+          ? { ...device, ...deviceData }
+          : device
+      ));
+    }
+  }, [deviceData]);
 
-    return unsubscribe;
-  }, []);
+  // Handle real-time alert updates
+  useEffect(() => {
+    if (newAlert) {
+      setAlerts(prev => [newAlert, ...prev]);
+      notifyError(`New ${newAlert.severity} alert: ${newAlert.message}`);
+    }
+  }, [newAlert]);
+
+  // Merge real-time alerts with existing alerts
+  useEffect(() => {
+    if (realtimeAlerts.length > 0) {
+      setAlerts(prev => {
+        const alertIds = new Set(prev.map(a => a.alertId));
+        const newAlerts = realtimeAlerts.filter(a => !alertIds.has(a.alertId));
+        return [...newAlerts, ...prev];
+      });
+    }
+  }, [realtimeAlerts]);
 
   const activeDevices = devices.filter(d => d.device_status === 'Active').length;
   const disconnectedDevices = devices.filter(d => d.device_status === 'Disconnected').length;
   const faultyDevices = devices.filter(d => d.device_status === 'Faulty').length;
   const urgentAlerts = alerts.filter(a => !a.resolved_status && a.severity === 'High').length;
   const avgBatteryLevel = devices.length > 0 
-    ? Math.round(devices.reduce((sum, d) => sum + d.battery_level, 0) / devices.length)
+    ? Math.round(devices.reduce((sum, d) => sum + (d.telemetry?.battery || d.battery_level || 0), 0) / devices.length)
     : 0;
 
   const recentAlerts = alerts.filter(a => !a.resolved_status).slice(0, 5);
@@ -77,13 +116,32 @@ const Dashboard = () => {
     if (loading) {
       return (
         <div className="p-6">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-300 rounded w-48 mb-6"></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {[...Array(2)].map((_, i) => (
-                <div key={i} className="h-32 bg-gray-300 rounded"></div>
-              ))}
-            </div>
+          <div className="mb-6">
+            <div className="h-8 bg-gray-300 rounded w-48 mb-2 animate-pulse"></div>
+            <div className="h-4 bg-gray-200 rounded w-64 animate-pulse"></div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="p-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+            <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+            <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Dashboard</h3>
+            <p className="text-red-600 mb-4">{error}</p>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            >
+              Retry
+            </button>
           </div>
         </div>
       );
@@ -123,13 +181,13 @@ const Dashboard = () => {
                     <div className="w-24 bg-gray-200 rounded-full h-2 mr-2">
                       <div 
                         className={`h-2 rounded-full ${
-                          userDevice.battery_level > 50 ? 'bg-green-500' :
-                          userDevice.battery_level > 20 ? 'bg-yellow-500' : 'bg-red-500'
+                          (userDevice.telemetry?.battery || userDevice.battery_level || 0) > 50 ? 'bg-green-500' :
+                          (userDevice.telemetry?.battery || userDevice.battery_level || 0) > 20 ? 'bg-yellow-500' : 'bg-red-500'
                         }`}
-                        style={{ width: `${userDevice.battery_level}%` }}
+                        style={{ width: `${userDevice.telemetry?.battery || userDevice.battery_level || 0}%` }}
                       />
                     </div>
-                    <span className="font-medium">{userDevice.battery_level}%</span>
+                    <span className="font-medium">{userDevice.telemetry?.battery || userDevice.battery_level || 0}%</span>
                   </div>
                 </div>
                 
@@ -185,13 +243,32 @@ const Dashboard = () => {
   if (loading) {
     return (
       <div className="p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-300 rounded w-48 mb-6"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-32 bg-gray-300 rounded"></div>
-            ))}
-          </div>
+        <div className="mb-6">
+          <div className="h-8 bg-gray-300 rounded w-48 mb-2 animate-pulse"></div>
+          <div className="h-4 bg-gray-200 rounded w-64 animate-pulse"></div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {[...Array(4)].map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+          <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+          <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Dashboard</h3>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -255,7 +332,7 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="mt-4 text-xs text-gray-500">
-            {devices.filter(d => d.battery_level < 20).length} devices low battery
+            {devices.filter(d => (d.telemetry?.battery || d.battery_level || 0) < 20).length} devices low battery
           </div>
         </div>
 

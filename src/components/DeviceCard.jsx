@@ -56,33 +56,36 @@ const DeviceCard = ({ device, onClick }) => {
     >
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">{device.device_id}</h3>
-          <p className="text-sm text-gray-500">{device.site_name}</p>
+          <h3 className="text-lg font-semibold text-gray-900">{device.device_id || 'Unknown Device'}</h3>
+          <p className="text-sm text-gray-500">{device.device_name || device.site_name || 'No name available'}</p>
         </div>
         
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(device.device_status)}`}>
-          {getStatusIcon(device.device_status)}
-          <span className="ml-1">{device.device_status}</span>
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(device.device_status || 'Unknown')}`}>
+          {getStatusIcon(device.device_status || 'Unknown')}
+          <span className="ml-1">{device.device_status || 'Unknown'}</span>
         </span>
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div className="flex items-center">
-          <Battery className={`h-4 w-4 mr-2 ${getBatteryColor(device.battery_level)}`} />
+          <Battery className={`h-4 w-4 mr-2 ${getBatteryColor(device.telemetry?.battery || device.battery_level || 0)}`} />
           <span className="text-sm text-gray-600">
-            {device.battery_level}%
+            {device.telemetry?.battery || device.battery_level || 'N/A'}%
           </span>
         </div>
         
         <div className="flex items-center">
           <MapPin className="h-4 w-4 mr-2 text-gray-400" />
           <span className="text-sm text-gray-600">
-            {device.location.lat.toFixed(4)}, {device.location.long.toFixed(4)}
+            {device.location 
+              ? `${device.location.lat?.toFixed(4) || 'N/A'}, ${device.location.long?.toFixed(4) || device.location.longitude?.toFixed(4) || 'N/A'}`
+              : 'Location not available'
+            }
           </span>
         </div>
       </div>
 
-      {device.SOS_triggered && (
+      {(device.SOS_triggered || device.sos_flag === 1 || device.telemetry?.sos_flag === 1) && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
           <div className="flex items-center">
             <AlertTriangle className="h-4 w-4 text-red-600 mr-2" />
@@ -103,13 +106,13 @@ const DeviceCard = ({ device, onClick }) => {
       <div className="border-t border-gray-200 pt-4">
         <div className="flex items-center justify-between text-sm text-gray-500">
           <span>Last Update:</span>
-          <span>{formatTimestamp(device.timestamp)}</span>
+          <span>{device.last_updated ? formatTimestamp(device.last_updated) : 'N/A'}</span>
         </div>
         
         <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-600">
-          <div>Vibration: {device.vibration_intensity.toFixed(1)}</div>
-          <div>Tilt X: {device.tilt_x.toFixed(1)}°</div>
-          <div>Actuator: {device.actuator_status ? 'ON' : 'OFF'}</div>
+          <div>Vibration: {device.telemetry?.vibration?.toFixed(1) || device.vibration_intensity?.toFixed(1) || device.vibration?.toFixed(1) || 'N/A'}</div>
+          <div>Tilt: {device.telemetry?.tilt?.toFixed(1) || device.tilt?.toFixed(1) || device.tilt?.toFixed(1) || 'N/A'}°</div>
+          <div>Actuator: {device.telemetry?.actuator_status !== undefined ? (device.telemetry?.actuator_status ? 'ON' : 'OFF') : device.actuator_status !== undefined ? (device.actuator_status ? 'ON' : 'OFF') : 'N/A'}</div>
         </div>
       </div>
     </div>
