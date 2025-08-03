@@ -8,6 +8,7 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react';
+import { formatLocalTimestamp } from '../utils/timezone';
 
 // No TypeScript: remove interface and type annotations
 // DeviceCard expects { device, onClick } as props
@@ -15,7 +16,7 @@ import {
 const DeviceCard = ({ device, onClick }) => {
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Active':
+      case 'ACTIVE':
         return 'bg-green-100 text-green-800';
       case 'Disconnected':
         return 'bg-gray-100 text-gray-800';
@@ -46,7 +47,7 @@ const DeviceCard = ({ device, onClick }) => {
   };
 
   const formatTimestamp = (timestamp) => {
-    return new Date(timestamp).toLocaleString();
+    return formatLocalTimestamp(timestamp);
   };
 
   return (
@@ -60,9 +61,9 @@ const DeviceCard = ({ device, onClick }) => {
           <p className="text-sm text-gray-500">{device.device_name || device.site_name || 'No name available'}</p>
         </div>
         
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(device.device_status || 'Unknown')}`}>
-          {getStatusIcon(device.device_status || 'Unknown')}
-          <span className="ml-1">{device.device_status || 'Unknown'}</span>
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(device.status || 'Unknown')}`}>
+          {getStatusIcon(device.status || 'Unknown')}
+          <span className="ml-1">{device.status || 'Unknown'}</span>
         </span>
       </div>
 

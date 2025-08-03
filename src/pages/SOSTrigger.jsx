@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Zap, AlertTriangle, Shield } from 'lucide-react';
 import { api } from '../utils/api';
+import { useDevicePolling } from '../hooks/useDevicePolling';
 import { SimpleNotification } from '../components/NotificationProvider';
 
 const SOSTrigger = () => {
-  const [devices, setDevices] = useState([]);
   const [selectedDevice, setSelectedDevice] = useState('');
   const [panicFlag, setPanicFlag] = useState(1);
   const [panicReason, setPanicReason] = useState(1);
@@ -14,25 +14,15 @@ const SOSTrigger = () => {
   const [notification, setNotification] = useState(null);
   const userRole = localStorage.getItem('userRole') || 'user';
 
+  // Use device polling hook for automatic device updates
+  const { devices } = useDevicePolling(60000, true); // Poll every 1 minute
+
   const panicMessages = [
     { label: "General Panic", value: 1 },
     { label: "Landslide", value: 2 },
     { label: "Flood", value: 3 },
     { label: "Earthquake", value: 4 }
   ];
-
-  useEffect(() => {
-    const loadDevices = async () => {
-      try {
-        const devicesData = await api.getDevices();
-        setDevices(devicesData);
-      } catch (error) {
-        console.error('Error loading devices:', error);
-      }
-    };
-
-    loadDevices();
-  }, []);
 
 
   const handleConfirmTrigger = async () => {

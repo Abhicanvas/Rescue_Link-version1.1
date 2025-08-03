@@ -8,6 +8,7 @@ import {
   Shield
 } from 'lucide-react';
 import { api } from '../utils/api';
+import { formatLocalTimestamp } from '../utils/timezone';
 
 const AlertCard = ({ alert, onResolve, onDeescalate }) => {
   const [isDeescalating, setIsDeescalating] = useState(false);
@@ -53,7 +54,7 @@ const AlertCard = ({ alert, onResolve, onDeescalate }) => {
   };
 
   const formatTimestamp = (timestamp) => {
-    return new Date(timestamp).toLocaleString();
+    return formatLocalTimestamp(timestamp);
   };
 
   const getAlertId = (alert) => {
