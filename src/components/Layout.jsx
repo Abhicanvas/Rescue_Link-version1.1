@@ -75,7 +75,7 @@ const Layout = ({ children }) => {
       >
         <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
           <h1 className="text-xl font-bold text-blue-600">
-            <img src="/src/assets/img/rescue_link_logo_color.png" alt="Logo" />
+            <img src="/rescue_link_logo_color.png" alt="Logo" />
           </h1>
           <button
             onClick={() => setSidebarOpen(false)}
