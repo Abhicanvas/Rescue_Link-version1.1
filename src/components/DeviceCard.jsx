@@ -57,8 +57,8 @@ const DeviceCard = ({ device, onClick }) => {
     >
       <div className="flex items-start justify-between mb-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">{device.device_id || 'Unknown Device'}</h3>
-          <p className="text-sm text-gray-500">{device.device_name || device.site_name || 'No name available'}</p>
+          <h3 className="text-lg font-semibold text-gray-900">{device.device_name || 'Unknown Device'}</h3>
+          {/* <p className="text-sm text-gray-500">{device.device_name || device.site_name || 'No name available'}</p> */}
         </div>
         
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(device.status || 'Unknown')}`}>
