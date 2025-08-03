@@ -164,7 +164,7 @@ const DeviceMap = () => {
       </div>
 
       {/* Map Container */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 ">
         <div className="relative">
           {/* OpenStreetMap */}
           <div style={{ height: '400px', width: '100%' }}>
@@ -190,7 +190,7 @@ const DeviceMap = () => {
                   }}
                 >
                   <Popup>
-                    <div className="p-2">
+                    <div className="p-2 z-index-50">
                       <div className="font-semibold text-lg mb-2">{device.device_id}</div>
                       <div className="space-y-1 text-sm">
                         <div>Status: <span className={`font-medium ${
@@ -270,10 +270,10 @@ const DeviceMap = () => {
         </div>
       </div>
 
-      {/* Device Detail Modal */}
+      {/* Device Detail Modal - FIXED Z-INDEX */}
       {selectedDevice && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto" style={{ zIndex: 10000 }}>
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-gray-900">

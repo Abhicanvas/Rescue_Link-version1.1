@@ -13,7 +13,8 @@ import DeviceMap from './pages/DeviceMap';
 import Analytics from './pages/Analytics';
 import Alerts from './pages/Alerts';
 import Admin from './pages/Admin';
-
+import SOSTrigger from './pages/SOSTrigger';
+import AdminLock from './pages/Adminlock';
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -71,6 +72,22 @@ function AppContent() {
           element={
             <ProtectedRoute requiredRole="admin">
               <Admin />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/sos-trigger" 
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <SOSTrigger />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/adminlock" 
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLock/>
             </ProtectedRoute>
           } 
         />

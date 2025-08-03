@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Settings,
   Users,
@@ -10,7 +10,366 @@ import {
   Trash2,
   Save,
   Key,
+  Loader,
 } from "lucide-react";
+import { deviceAPI, userAPI, settingsAPI, exportAPI, api, ApiError } from '../services/adminServices.js';
+
+// DeviceForm with internal state and API-consistent field names
+const DeviceForm = React.memo(({ initialData, users, onSubmit, submitText, onCancel, loading }) => {
+  const [deviceData, setDeviceData] = useState(initialData);
+
+  const handleInputChange = useCallback(
+    (e) => {
+      const { name, value } = e.target;
+      setDeviceData((prev) => ({ ...prev, [name]: value }));
+    },
+    []
+  );
+
+  const handleSubmit = useCallback(() => {
+    onSubmit(deviceData);
+  }, [onSubmit, deviceData]);
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+      <div className="space-y-4">
+        <div>
+          <label className="block mb-1 font-medium">Device ID</label>
+          <input
+            key="device-id"
+            type="text"
+            name="device_id"
+            value={deviceData.device_id || ''}
+            onChange={handleInputChange}
+            className="w-full border rounded px-3 py-2"
+            required
+            disabled={submitText === "Update Device"}
+          />
+        </div>
+        <div>
+          <label className="block mb-1 font-medium">Site Name</label>
+          <input
+            key="site-name"
+            type="text"
+            name="site_name"
+            value={deviceData.site_name || ''}
+            onChange={handleInputChange}
+            className="w-full border rounded px-3 py-2"
+            required
+          />
+        </div>
+        <div>
+          <label className="block mb-1 font-medium">Device Name</label>
+          <input
+            key="device-name"
+            type="text"
+            name="device_name"
+            value={deviceData.device_name || ''}
+            onChange={handleInputChange}
+            className="w-full border rounded px-3 py-2"
+            required
+          />
+        </div>
+        <div>
+          <label className="block mb-1 font-medium">Assigned User</label>
+          <select
+            key="assigned-user"
+            name="user_id"
+            value={deviceData.user_id || ''}
+            onChange={handleInputChange}
+            className="w-full border rounded px-3 py-2"
+            required
+          >
+            <option value="">Select User</option>
+            {users
+              .filter(u => (u.role || '').toLowerCase() === "user")
+              .map(u => (
+                <option key={u.id} value={u.id}>
+                  {u.full_name}
+                </option>
+              ))}
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block mb-1 font-medium">Latitude</label>
+            <input
+              key="latitude"
+              type="number"
+              name="latitude"
+              step="0.000001"
+              value={deviceData.latitude || ''}
+              onChange={handleInputChange}
+              className="w-full border rounded px-3 py-2"
+              required
+            />
+          </div>
+          <div>
+            <label className="block mb-1 font-medium">Longitude</label>
+            <input
+              key="longitude"
+              type="number"
+              name="longitude"
+              step="0.000001"
+              value={deviceData.longitude || ''}
+              onChange={handleInputChange}
+              className="w-full border rounded px-3 py-2"
+              required
+            />
+          </div>
+        </div>
+        <div>
+          <label className="block mb-1 font-medium">Status</label>
+          <select
+            key="status"
+            name="status"
+            value={deviceData.status || 'Active'}
+            onChange={handleInputChange}
+            className="w-full border rounded px-3 py-2"
+            required
+          >
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
+        <div className="flex justify-end space-x-3 pt-4">
+          <button 
+            type="button" 
+            onClick={onCancel} 
+            className="border px-4 py-2 rounded"
+            disabled={loading}
+          >
+            Cancel
+          </button>
+          <button 
+            type="submit" 
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center"
+            disabled={loading}
+          >
+            {loading && <Loader className="animate-spin h-4 w-4 mr-2" />}
+            {submitText}
+          </button>
+        </div>
+      </div>
+    </form>
+  );
+});
+
+// UserForm with fixed password generation and API-consistent field names
+const UserForm = React.memo(({ initialData, onSubmit, generatePassword, submitText, onCancel, loading }) => {
+  const [userData, setUserData] = useState({
+    ...initialData,
+    full_name: `${initialData.first_name || ''} ${initialData.last_name || ''}`.trim(),
+  });
+
+  const handleInputChange = useCallback(
+    (e) => {
+      const { name, value } = e.target;
+      setUserData((prev) => {
+        const updatedData = { ...prev, [name]: value };
+        // Update full_name whenever first_name or last_name changes
+        if (name === 'first_name' || name === 'last_name') {
+          updatedData.full_name = `${updatedData.first_name || ''} ${updatedData.last_name || ''}`.trim();
+        }
+        return updatedData;
+      });
+    },
+    []
+  );
+
+  const handleGeneratePassword = useCallback(() => {
+    const newPassword = generatePassword();
+    setUserData((prev) => ({ ...prev, password: newPassword }));
+  }, [generatePassword]);
+
+  const handleSubmit = useCallback(() => {
+    onSubmit(userData);
+  }, [onSubmit, userData]);
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block mb-1 font-medium">First Name</label>
+            <input
+              key="first-name"
+              type="text"
+              name="first_name"
+              value={userData.first_name || ''}
+              onChange={handleInputChange}
+              className="w-full border rounded px-3 py-2"
+              required
+            />
+          </div>
+          <div>
+            <label className="block mb-1 font-medium">Last Name</label>
+            <input
+              key="last-name"
+              type="text"
+              name="last_name"
+              value={userData.last_name || ''}
+              onChange={handleInputChange}
+              className="w-full border rounded px-3 py-2"
+              required
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block mb-1 font-medium">Email</label>
+          <input
+            key="email"
+            type="email"
+            name="email"
+            value={userData.email || ''}
+            onChange={handleInputChange}
+            className="w-full border rounded px-3 py-2"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block mb-1 font-medium">Phone Number</label>
+          <input
+            key="phone_number"
+            type="tel"
+            name="phone_number"
+            value={userData.phone_number || ''}
+            onChange={handleInputChange}
+            className="w-full border rounded px-3 py-2"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block mb-1 font-medium">Emergency Contact Name</label>
+          <input
+            key="emergency_contact_name"
+            type="text"
+            name="emergency_contact_name"
+            value={userData.emergency_contact_name || ''}
+            onChange={handleInputChange}
+            className="w-full border rounded px-3 py-2"
+            required={submitText === "Add User"}
+          />
+        </div>
+
+        <div>
+          <label className="block mb-1 font-medium">Emergency Contact Number</label>
+          <input
+            key="emergency_contact_number"
+            type="tel"
+            name="emergency_contact_number"
+            value={userData.emergency_contact_number || ''}
+            onChange={handleInputChange}
+            className="w-full border rounded px-3 py-2"
+            required={submitText === "Add User"}
+          />
+        </div>
+
+        <div>
+          <label className="block mb-1 font-medium">Role</label>
+          <select
+            key="role"
+            name="role"
+            value={userData.role || 'user'}
+            onChange={handleInputChange}
+            className="w-full border rounded px-3 py-2"
+            required
+          >
+            <option value="user">User</option>
+            <option value="operator">Operator</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+
+        {submitText === "Add User" && (
+          <div>
+            <label className="block mb-1 font-medium">Password</label>
+            <div className="flex gap-2">
+              <input
+                key="password"
+                type="password"
+                name="password"
+                value={userData.password || ""}
+                onChange={handleInputChange}
+                className="flex-1 border rounded px-3 py-2"
+                placeholder="Enter password or generate one"
+                required
+              />
+              <button
+                type="button"
+                onClick={handleGeneratePassword}
+                className="border px-3 py-2 rounded flex items-center gap-1"
+              >
+                <Key size={16} /> Generate
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end space-x-3 pt-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="border px-4 py-2 rounded"
+            disabled={loading}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 flex items-center"
+            disabled={loading}
+          >
+            {loading && <Loader className="animate-spin h-4 w-4 mr-2" />}
+            {submitText}
+          </button>
+        </div>
+      </div>
+    </form>
+  );
+});
+
+// Add display names for debugging
+DeviceForm.displayName = 'DeviceForm';
+UserForm.displayName = 'UserForm';
+
+// Error display component
+const ErrorMessage = ({ message, onClose }) => (
+  <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+    <div className="flex justify-between items-center">
+      <p className="text-red-800">{message}</p>
+      <button
+        onClick={onClose}
+        className="text-red-600 hover:text-red-800 text-xl font-bold"
+      >
+        ×
+      </button>
+    </div>
+  </div>
+);
+
+// Loading spinner component
+const LoadingSpinner = () => (
+  <div className="flex justify-center items-center py-4">
+    <Loader className="animate-spin h-6 w-6 text-blue-600" />
+  </div>
+);
+
+// Simple reusable modal component
+const Modal = ({ children, onClose, title }) => (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded shadow-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div className="flex justify-between items-center border-b px-6 py-3">
+        <h3 className="text-lg font-semibold">{title}</h3>
+        <button onClick={onClose} className="text-xl font-bold leading-none">&times;</button>
+      </div>
+      <div className="p-6">{children}</div>
+    </div>
+  </div>
+);
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState("devices");
@@ -18,85 +377,23 @@ const Admin = () => {
   const [showEditDevice, setShowEditDevice] = useState(false);
   const [showAddUser, setShowAddUser] = useState(false);
   const [showEditUser, setShowEditUser] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Use state for devices and users to allow updating on add/edit
-  const [devices, setDevices] = useState([
-    {
-      id: "RLK001",
-      siteName: "Dhaka Central",
-      deviceName: "Emergency Sensor 1",
-      assignedUser: "John Smith",
-      latitude: "23.8103",
-      longitude: "90.4125",
-      status: "Active",
-    },
-    {
-      id: "RLK002",
-      siteName: "Wari Junction",
-      deviceName: "Emergency Sensor 2",
-      assignedUser: "Jane Operator",
-      latitude: "23.7805",
-      longitude: "90.3492",
-      status: "Active",
-    },
-    {
-      id: "RLK003",
-      siteName: "Motijheel Area",
-      deviceName: "Emergency Sensor 3",
-      assignedUser: "Mike Admin",
-      latitude: "23.7461",
-      longitude: "90.3742",
-      status: "Disconnected",
-    },
-  ]);
-
-  const [users, setUsers] = useState([
-    {
-      id: "1",
-      name: "John Smith",
-      email: "john@rescuelink.com",
-      role: "User",
-      phone: "+1234567890",
-      lastLogin: "2024-01-07",
-    },
-    {
-      id: "2",
-      name: "Jane Operator",
-      email: "jane@rescuelink.com",
-      role: "Operator",
-      phone: "+1234567891",
-      lastLogin: "2024-01-06",
-    },
-    {
-      id: "3",
-      name: "Mike Admin",
-      email: "mike@rescuelink.com",
-      role: "Admin",
-      phone: "+1234567892",
-      lastLogin: "2024-01-05",
-    },
-  ]);
+  // State for devices and users
+  const [devices, setDevices] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [settings, setSettingsState] = useState({
+    sosAlertThreshold: 30,
+    lowBatteryThreshold: 20,
+    vibrationSensitivity: "Medium",
+    lorawanGatewayIP: "192.168.1.100",
+    dataUpdateInterval: 60,
+    backupServerURL: "",
+  });
 
   const [editingDevice, setEditingDevice] = useState(null);
-  const [newDeviceData, setNewDeviceData] = useState({
-    id: "",
-    siteName: "",
-    deviceName: "",
-    assignedUser: "",
-    latitude: "",
-    longitude: "",
-    status: "Active",
-  });
-
   const [editingUser, setEditingUser] = useState(null);
-  const [newUserData, setNewUserData] = useState({
-    id: "",
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    role: "user",
-  });
 
   const tabs = [
     { id: "devices", label: "Device Management", icon: Settings },
@@ -105,242 +402,651 @@ const Admin = () => {
     { id: "data", label: "Data Management", icon: Database },
   ];
 
-  // Generate random password
-  const generatePassword = () => {
+  // Test API connection on component mount
+  useEffect(() => {
+    const testConnection = async () => {
+      try {
+        if (api.isAuthenticated()) {
+          console.log('API connection test: authenticated');
+          const profile = await api.getProfile();
+          console.log('API connection successful, user:', profile);
+        } else {
+          console.warn('API connection test: not authenticated');
+          setError('Authentication required. Please log in.');
+        }
+      } catch (err) {
+        if (err instanceof ApiError) {
+          console.error('API connection test failed:', err.message);
+          if (err.status === 401) {
+            setError('Authentication expired. Please log in again.');
+          } else {
+            setError(`Connection failed: ${err.message}`);
+          }
+        } else {
+          console.error('API connection test failed:', err);
+          setError('Network connection failed. Please check your connection.');
+        }
+      }
+    };
+    
+    testConnection();
+  }, []);
+
+  // Fetch data on component mount and tab change
+  useEffect(() => {
+    if (activeTab === "devices") {
+      fetchDevices();
+    } else if (activeTab === "users") {
+      fetchUsers();
+    } else if (activeTab === "settings") {
+      fetchSettings();
+    }
+  }, [activeTab]);
+
+  // Helper function to extract data from API response
+  const extractResponseData = (response, dataKey = null) => {
+    console.log('API Response:', response);
+    if (dataKey && response.data[dataKey]) {
+      return response.data[dataKey];
+    }
+    
+    if (response.data) return response.data;
+    if (response.users) return response.users;
+    if (response.results) return response.results;
+    
+    return response;
+  };
+
+  // API call functions
+  const fetchDevices = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await deviceAPI.getAll();
+      const deviceData = extractResponseData(response);
+      setDevices(Array.isArray(deviceData) ? deviceData : []);
+    } catch (err) {
+      let errorMessage = 'Failed to fetch devices';
+      
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+        if (err.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
+      }
+      
+      setError(errorMessage);
+      console.error('Error fetching devices:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await userAPI.getAll();
+      console.log('Users API Response:', response.data);
+      
+      const userData = extractResponseData(response);
+      setUsers(Array.isArray(userData) ? userData : []);
+    } catch (err) {
+      let errorMessage = 'Failed to fetch users';
+      
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+        if (err.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+      
+      setError(errorMessage);
+      console.error('Error fetching users:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchSettings = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await settingsAPI.get();
+      const settingsData = extractResponseData(response);
+      setSettingsState(settingsData);
+    } catch (err) {
+      let errorMessage = 'Failed to fetch settings';
+      
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      console.error('Error fetching settings:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Device operations with stable callbacks
+  const handleAddDevice = useCallback(async (deviceData) => {
+    if (
+      !deviceData.device_id ||
+      !deviceData.site_name ||
+      !deviceData.device_name ||
+      !deviceData.user_id ||
+      !deviceData.latitude ||
+      !deviceData.longitude
+    ) {
+      alert("Please fill all required fields.");
+      return;
+    }
+
+    const lat = parseFloat(deviceData.latitude);
+    const lon = parseFloat(deviceData.longitude);
+    if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
+      alert("Invalid latitude or longitude values.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const payload = {
+        device_id: deviceData.device_id,
+        site_name: deviceData.site_name,
+        device_name: deviceData.device_name,
+        user_id: deviceData.user_id,
+        latitude: lat,
+        longitude: lon,
+        status: deviceData.status || 'Active',
+      };
+      const response = await deviceAPI.create(payload);
+      console.log('Device API Response:', response.data);
+      const newDevice = extractResponseData(response);
+      setDevices(prev => [...prev, newDevice]);
+      setShowAddDevice(false);
+      alert('Device added successfully!');
+    } catch (err) {
+      let errorMessage = 'Failed to add device';
+      if (err instanceof ApiError) {
+        if (err.status === 409) {
+          errorMessage = 'Device ID already exists';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      setError(errorMessage);
+      console.error('Error adding device:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleUpdateDevice = useCallback(async (deviceData) => {
+    if (
+      !deviceData.device_id ||
+      !deviceData.site_name ||
+      !deviceData.device_name ||
+      !deviceData.user_id ||
+      !deviceData.latitude ||
+      !deviceData.longitude
+    ) {
+      alert("Please fill all required fields.");
+      return;
+    }
+
+    const lat = parseFloat(deviceData.latitude);
+    const lon = parseFloat(deviceData.longitude);
+    if (isNaN(lat) || lat < -90 || lat > 90 || isNaN(lon) || lon < -180 || lon > 180) {
+      alert("Invalid latitude or longitude values.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const payload = {
+        device_id: deviceData.device_id,
+        site_name: deviceData.site_name,
+        device_name: deviceData.device_name,
+        user_id: deviceData.user_id,
+        latitude: lat,
+        longitude: lon,
+        status: deviceData.status || 'Active',
+      };
+      const response = await deviceAPI.updateDevice(editingDevice.device_id, payload);
+      const updatedDevice = extractResponseData(response);
+      
+      setDevices(prev => prev.map(dev => dev.device_id === editingDevice.device_id ? updatedDevice : dev));
+      
+      setEditingDevice(null);
+      setShowEditDevice(false);
+      alert('Device updated successfully!');
+    } catch (err) {
+      let errorMessage = 'Failed to update device';
+      
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      console.error('Error updating device:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [editingDevice]);
+
+  const handleDeleteDevice = async (device_id) => {
+    if (!window.confirm('Are you sure you want to delete this device?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      await deviceAPI.delete(device_id);
+      setDevices(prev => prev.filter(dev => dev.device_id !== device_id));
+      alert('Device deleted successfully!');
+    } catch (err) {
+      let errorMessage = 'Failed to delete device';
+      
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      console.error('Error deleting device:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // User operations with stable callbacks
+  const handleAddUser = useCallback(async (userData) => {
+    if (
+      !userData.first_name ||
+      !userData.last_name ||
+      !userData.email ||
+      !userData.phone_number ||
+      !userData.password
+    ) {
+      alert("Please fill all required fields.");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^\+?[\d\s-]{10,}$/;
+    if (!emailRegex.test(userData.email)) {
+      alert("Invalid email format.");
+      return;
+    }
+    if (!phoneRegex.test(userData.phone_number)) {
+      alert("Invalid phone number format.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const userPayload = {
+        full_name: `${userData.first_name} ${userData.last_name}`.trim(),
+        email: userData.email,
+        phone_number: userData.phone_number,
+        role: userData.role,
+        password: userData.password,
+        emergency_contact_name: userData.emergency_contact_name,
+        emergency_contact_number: userData.emergency_contact_number,
+      };
+
+      console.log('Sending user creation request:', userPayload);
+      const response = await userAPI.create(userPayload);
+      console.log('User API Response:', response.data);
+      const newUser = extractResponseData(response);
+      if (!newUser.full_name) {
+        newUser.full_name = `${newUser.first_name} ${newUser.last_name}`.trim();
+      }
+      setUsers(prev => [...prev, newUser]);
+      
+      setShowAddUser(false);
+      alert('User added successfully!');
+    } catch (err) {
+      let errorMessage = 'Failed to add user';
+      
+      if (err instanceof ApiError) {
+        if (err.status === 405) {
+          errorMessage = 'User creation is not allowed. Please check the API configuration.';
+        } else if (err.status === 409) {
+          errorMessage = 'Email already exists';
+        } else if (err.status === 422 && err.data?.detail) {
+          errorMessage = Array.isArray(err.data.detail)
+            ? err.data.detail.map(detail => detail.msg).join('; ')
+            : err.data.detail || err.message;
+        } else {
+          errorMessage = err.data?.detail || err.message || 'Unknown error';
+        }
+      } else {
+        errorMessage = err.message || 'Network error';
+      }
+      
+      setError(errorMessage);
+      console.error('Error adding user:', {
+        message: err.message,
+        status: err.status,
+        data: err.data,
+        response: err.response?.data
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleUpdateUser = useCallback(async (userData) => {
+    if (
+      !userData.first_name ||
+      !userData.last_name ||
+      !userData.email ||
+      !userData.phone_number
+    ) {
+      alert("Please fill all required fields.");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^\+?[\d\s-]{10,}$/;
+    if (!emailRegex.test(userData.email)) {
+      alert("Invalid email format.");
+      return;
+    }
+    if (!phoneRegex.test(userData.phone_number)) {
+      alert("Invalid phone number format.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const userPayload = {
+        first_name: userData.first_name,
+        last_name: userData.last_name,
+        full_name: `${userData.first_name} ${userData.last_name}`.trim(),
+        email: userData.email,
+        phone_number: userData.phone_number,
+        role: userData.role,
+        emergency_contact_name: userData.emergency_contact_name,
+        emergency_contact_number: userData.emergency_contact_number,
+      };
+
+      const response = await userAPI.updateUser(editingUser.id, userPayload);
+      const updatedUser = extractResponseData(response);
+      if (!updatedUser.full_name) {
+        updatedUser.full_name = `${updatedUser.first_name} ${updatedUser.last_name}`.trim();
+      }
+      
+      setUsers(prev => prev.map(usr => 
+        usr.id === editingUser.id ? updatedUser : usr
+      ));
+      
+      setEditingUser(null);
+      setShowEditUser(false);
+      alert('User updated successfully!');
+    } catch (err) {
+      let errorMessage = 'Failed to update user';
+      
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+      } else if (typeof err === 'object' && err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      console.error('Error updating user:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [editingUser]);
+
+  const handleDeleteUser = async (userId) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      await userAPI.delete(userId);
+      setUsers(prev => prev.filter(usr => usr.id !== userId));
+      alert('User deleted successfully!');
+    } catch (err) {
+      let errorMessage = 'Failed to delete user';
+      
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      console.error('Error deleting user:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Settings operations
+  const handleSaveSettings = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      await settingsAPI.update(settings);
+      alert('Settings saved successfully!');
+    } catch (err) {
+      let errorMessage = 'Failed to save settings';
+      
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      console.error('Error saving settings:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Export operations
+  const handleExport = async (type, format = 'csv') => {
+    try {
+      setLoading(true);
+      setError(null);
+      let response;
+      
+      switch (type) {
+        case 'devices':
+          response = await exportAPI.devices(format);
+          break;
+        case 'alerts':
+          response = await exportAPI.alerts(format);
+          break;
+        case 'reports':
+          response = await exportAPI.reports(format);
+          break;
+        default:
+          throw new Error('Invalid export type');
+      }
+
+      // Handle the response data
+      const blob = new Blob([response.data], {
+        type: format === 'csv' ? 'text/csv' : 'application/pdf'
+      });
+      
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${type}_export.${format}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      alert(`${type} exported successfully!`);
+    } catch (err) {
+      let errorMessage = `Failed to export ${type}`;
+      
+      if (err instanceof ApiError) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+      console.error(`Error exporting ${type}:`, err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Generate random password with stable callback
+  const generatePassword = useCallback(() => {
     const chars =
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
     let password = "";
     for (let i = 0; i < 12; i++) {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    setNewUserData((d) => ({ ...d, password }));
-  };
+    return password;
+  }, []);
 
-  // Add Device
-  const handleAddDevice = () => {
-    if (
-      !newDeviceData.id ||
-      !newDeviceData.siteName ||
-      !newDeviceData.deviceName ||
-      !newDeviceData.assignedUser ||
-      !newDeviceData.latitude ||
-      !newDeviceData.longitude
-    ) {
-      alert("Please fill all required fields.");
-      return;
-    }
-    // Create new device object
-    const deviceToAdd = {
-      ...newDeviceData,
-      status: "Active", // default status
-    };
-    setDevices((d) => [...d, deviceToAdd]);
-    setNewDeviceData({
-      id: "",
-      siteName: "",
-      deviceName: "",
-      assignedUser: "",
-      latitude: "",
-      longitude: "",
-      status: "Active",
+  // Helper functions with stable callbacks
+  const startEditDevice = useCallback((device) => {
+    setEditingDevice({
+      device_id: device.device_id || '',
+      site_name: device.site_name || '',
+      device_name: device.device_name || '',
+      user_id: device.user_id || '',
+      latitude: device.latitude || '',
+      longitude: device.longitude || '',
+      status: device.status || 'Active',
     });
-    setShowAddDevice(false);
-  };
-
-  // Update Device
-  const handleUpdateDevice = () => {
-    if (
-      !newDeviceData.id ||
-      !newDeviceData.siteName ||
-      !newDeviceData.deviceName ||
-      !newDeviceData.assignedUser ||
-      !newDeviceData.latitude ||
-      !newDeviceData.longitude
-    ) {
-      alert("Please fill all required fields.");
-      return;
-    }
-    setDevices((d) =>
-      d.map((dev) =>
-        dev.id === editingDevice.id ? { ...newDeviceData } : dev
-      )
-    );
-    setEditingDevice(null);
-    setShowEditDevice(false);
-    setNewDeviceData({
-      id: "",
-      siteName: "",
-      deviceName: "",
-      assignedUser: "",
-      latitude: "",
-      longitude: "",
-      status: "Active",
-    });
-    alert(`Device ${newDeviceData.id} updated successfully!`);
-  };
-
-  // Begin editing a device
-  const startEditDevice = (device) => {
-    setEditingDevice(device);
-    setNewDeviceData({ ...device });
     setShowEditDevice(true);
-  };
+  }, []);
 
-  // Add User
-  const handleAddUser = () => {
-    if (
-      !newUserData.firstName ||
-      !newUserData.lastName ||
-      !newUserData.email ||
-      !newUserData.phone
-    ) {
-      alert("Please fill all required fields.");
-      return;
+  const startEditUser = useCallback((user) => {
+    // Split full_name if first_name and last_name are not provided
+    let first_name = user.first_name || '';
+    let last_name = user.last_name || '';
+    if (!first_name && !last_name && user.full_name) {
+      const names = user.full_name.split(' ');
+      first_name = names[0] || '';
+      last_name = names.slice(1).join(' ') || '';
     }
-    const fullName = `${newUserData.firstName} ${newUserData.lastName}`;
-    const newUser = {
-      id: (users.length + 1).toString(),
-      name: fullName,
-      email: newUserData.email,
-      phone: newUserData.phone,
-      role: newUserData.role,
-      lastLogin: "N/A",
-    };
-    setUsers((u) => [...u, newUser]);
-    setNewUserData({
-      id: "",
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      role: "user",
-    });
-    setShowAddUser(false);
-    alert(`User ${newUserData.email} added successfully.`);
-  };
 
-  // Update User
-  const handleUpdateUser = () => {
-    if (
-      !newUserData.firstName ||
-      !newUserData.lastName ||
-      !newUserData.email ||
-      !newUserData.phone
-    ) {
-      alert("Please fill all required fields.");
-      return;
-    }
-    const fullName = `${newUserData.firstName} ${newUserData.lastName}`;
-
-    setUsers((u) =>
-      u.map((usr) =>
-        usr.id === editingUser.id
-          ? { ...usr, name: fullName, email: newUserData.email, phone: newUserData.phone, role: newUserData.role }
-          : usr
-      )
-    );
-    setEditingUser(null);
-    setShowEditUser(false);
-    setNewUserData({
-      id: "",
-      firstName: "",
-      lastName: "",
-      email: "",
-      phone: "",
-      role: "user",
-    });
-    alert(`User ${newUserData.email} updated successfully.`);
-  };
-
-  // Begin editing user
-  const startEditUser = (user) => {
-    setEditingUser(user);
-    const [firstName, ...lastNameParts] = user.name.split(" ");
-    setNewUserData({
+    setEditingUser({
       id: user.id,
-      firstName,
-      lastName: lastNameParts.join(" "),
-      email: user.email,
-      phone: user.phone,
-      role: user.role.toLowerCase(),
+      first_name,
+      last_name,
+      full_name: `${first_name} ${last_name}`.trim(),
+      email: user.email || '',
+      phone_number: user.phone_number || user.phone || '',
+      role: user.role ? user.role.toLowerCase() : 'user',
+      emergency_contact_name: user.emergency_contact_name || '',
+      emergency_contact_number: user.emergency_contact_number || '',
     });
     setShowEditUser(true);
-  };
+  }, []);
 
-  // Component for Device Management tab
+  const closeAddDevice = useCallback(() => setShowAddDevice(false), []);
+  const closeAddUser = useCallback(() => setShowAddUser(false), []);
+
+  // Device Management component
   const DeviceManagement = () => (
     <div className="space-y-6">
-      {/* Header with Add */}
+      {error && <ErrorMessage message={error} onClose={() => setError(null)} />}
+      
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">Device Management</h2>
         <button
           onClick={() => setShowAddDevice(true)}
-          className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          disabled={loading}
+          className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
         >
           <Plus className="mr-1" size={16} />
           Add Device
         </button>
       </div>
-      {/* Table */}
-      <div className="bg-white rounded shadow divide-y divide-gray-200 overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              {["Device ID", "Site Name", "Device Name", "Assigned User", "Status", "Latitude", "Longitude", "Actions"].map(
-                (header) => (
-                  <th
-                    key={header}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    {header}
-                  </th>
-                )
-              )}
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {devices.map((device) => (
-              <tr key={device.id}>
-                <td className="px-6 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {device.id}
-                </td>
-                <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{device.siteName}</td>
-                <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{device.deviceName}</td>
-                <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{device.assignedUser}</td>
-                <td className={`px-6 py-2 whitespace-nowrap text-sm ${device.status === "Active" ? "text-green-600" : "text-red-600"}`}>
-                  {device.status}
-                </td>
-                <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{device.latitude}</td>
-                <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{device.longitude}</td>
-                <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">
-                  <button
-                    onClick={() => startEditDevice(device)}
-                    className="text-blue-600 hover:text-blue-900 mr-3"
-                    title="Edit Device"
-                  >
-                    <Edit size={16} />
-                  </button>
-                  {/* Optional Delete Button */}
-                  {/* <button onClick={() => {}} className="text-red-600 hover:text-red-900" title="Delete Device">
-                  <Trash2 size={16} />
-                  </button> */}
-                </td>
+
+      {loading ? (
+        <LoadingSpinner />
+      ) : (
+        <div className="bg-white rounded shadow divide-y divide-gray-200 overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                {["Device ID" , "Device Name", "Assigned User", "Status", "Latitude", "Longitude", "Actions"].map(
+                  (header) => (
+                    <th
+                      key={header}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      {header}
+                    </th>
+                  )
+                )}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {devices.map((device) => (
+                <tr key={device.device_id}>
+                  <td className="px-6 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{device.device_id}</td>
+                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{device.device_name}</td>
+                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{device.user_id}</td>
+                  <td className={`px-6 py-2 whitespace-nowrap text-sm ${device.status === "Active" ? "text-green-600" : "text-red-600"}`}>{device.status}</td>
+                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{device.latitude}</td>
+                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{device.longitude}</td>
+                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">
+                    <button 
+                      onClick={() => handleDeleteDevice(device.device_id)}
+                      className="text-red-600 hover:text-red-900" 
+                      title="Delete Device"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                    <button
+                      onClick={() => startEditDevice(device)}
+                      className="text-blue-600 hover:text-blue-900 ml-3"
+                      title="Edit Device"
+                    >
+                      <Edit size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Add Device Modal */}
       {showAddDevice && (
-        <Modal onClose={() => setShowAddDevice(false)} title="Add New Device">
+        <Modal onClose={closeAddDevice} title="Add New Device">
           <DeviceForm
-            deviceData={newDeviceData}
-            setDeviceData={setNewDeviceData}
+            initialData={{
+              device_id: "",
+              site_name: "",
+              device_name: "",
+              user_id: "",
+              latitude: "",
+              longitude: "",
+              status: "Active",
+            }}
             users={users}
             onSubmit={handleAddDevice}
             submitText="Add Device"
-            onCancel={() => setShowAddDevice(false)}
+            onCancel={closeAddDevice}
+            loading={loading}
           />
         </Modal>
       )}
@@ -350,19 +1056,17 @@ const Admin = () => {
         <Modal onClose={() => {
           setShowEditDevice(false);
           setEditingDevice(null);
-          setNewDeviceData({
-            id: "",
-            siteName: "",
-            deviceName: "",
-            assignedUser: "",
-            latitude: "",
-            longitude: "",
-            status: "Active",
-          });
-        }} title={`Edit Device ${editingDevice?.id}`}>
+        }} title={`Edit Device ${editingDevice?.device_id}`}>
           <DeviceForm
-            deviceData={newDeviceData}
-            setDeviceData={setNewDeviceData}
+            initialData={{
+              device_id: editingDevice.device_id || '',
+              site_name: editingDevice.site_name || '',
+              device_name: editingDevice.device_name || '',
+              user_id: editingDevice.user_id || '',
+              latitude: editingDevice.latitude || '',
+              longitude: editingDevice.longitude || '',
+              status: editingDevice.status || 'Active',
+            }}
             users={users}
             onSubmit={handleUpdateDevice}
             submitText="Update Device"
@@ -370,82 +1074,102 @@ const Admin = () => {
               setShowEditDevice(false);
               setEditingDevice(null);
             }}
+            loading={loading}
           />
         </Modal>
       )}
     </div>
   );
 
-  // Component for User Management tab
+  // User Management component
   const UserManagement = () => (
     <div className="space-y-6">
-      {/* Header with Add */}
+      {error && <ErrorMessage message={error} onClose={() => setError(null)} />}
+      
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">User Management</h2>
         <button
           onClick={() => setShowAddUser(true)}
-          className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          disabled={loading}
+          className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
         >
           <Plus className="mr-1" size={16} />
           Add User
         </button>
       </div>
-      {/* Table */}
-      <div className="bg-white rounded shadow divide-y divide-gray-200 overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              {["Name", "Email", "Phone", "Role", "Last Login", "Actions"].map(
-                (header) => (
-                  <th
-                    key={header}
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    {header}
-                  </th>
-                )
-              )}
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {users.map((user) => (
-              <tr key={user.id}>
-                <td className="px-6 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                  {user.name}
-                </td>
-                <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{user.email}</td>
-                <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{user.phone}</td>
-                <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{user.role}</td>
-                <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{user.lastLogin}</td>
-                <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">
-                  <button
-                    onClick={() => startEditUser(user)}
-                    className="text-blue-600 hover:text-blue-900 mr-3"
-                    title="Edit User"
-                  >
-                    <Edit size={16} />
-                  </button>
-                  {/* Optional delete */}
-                  {/* <button onClick={() => {}} className="text-red-600 hover:text-red-900" title="Delete User">
-                    <Trash2 size={16} />
-                  </button> */}
-                </td>
+
+      {loading ? (
+        <LoadingSpinner />
+      ) : (
+        <div className="bg-white rounded shadow divide-y divide-gray-200 overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                {["Name", "Email", "Phone", "Role", "Last Login", "Actions"].map(
+                  (header) => (
+                    <th
+                      key={header}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                    >
+                      {header}
+                    </th>
+                  )
+                )}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {users.map((user) => (
+                <tr key={user.id}>
+                  <td className="px-6 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {user.full_name}
+                  </td>
+                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{user.email}</td>
+                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{user.phone_number || user.phone}</td>
+                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{user.role}</td>
+                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{user.last_login || 'N/A'}</td>
+                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">
+                    <button
+                      onClick={() => startEditUser(user)}
+                      className="text-blue-600 hover:text-blue-900 mr-3"
+                      title="Edit User"
+                    >
+                      <Edit size={16} />
+                    </button>
+                    <button 
+                      onClick={() => handleDeleteUser(user.id)}
+                      className="text-red-600 hover:text-red-900" 
+                      title="Delete User"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Add User Modal */}
       {showAddUser && (
-        <Modal onClose={() => setShowAddUser(false)} title="Add New User">
+        <Modal onClose={closeAddUser} title="Add New User">
           <UserForm
-            userData={newUserData}
-            setUserData={setNewUserData}
+            initialData={{
+              id: "",
+              first_name: "",
+              last_name: "",
+              email: "",
+              phone_number: "",
+              role: "user",
+              emergency_contact_name: "",
+              emergency_contact_number: "",
+              password: "",
+            }}
             onSubmit={handleAddUser}
             generatePassword={generatePassword}
             submitText="Add User"
-            onCancel={() => setShowAddUser(false)}
+            onCancel={closeAddUser}
+            loading={loading}
           />
         </Modal>
       )}
@@ -455,18 +1179,20 @@ const Admin = () => {
         <Modal onClose={() => {
           setShowEditUser(false);
           setEditingUser(null);
-          setNewUserData({
-            id: "",
-            firstName: "",
-            lastName: "",
-            email: "",
-            phone: "",
-            role: "user",
-          });
-        }} title={`Edit User ${editingUser?.name}`}>
+        }} title={`Edit User ${editingUser?.full_name || `${editingUser?.first_name || ''} ${editingUser?.last_name || ''}`.trim()}`}>
           <UserForm
-            userData={newUserData}
-            setUserData={setNewUserData}
+            initialData={{
+              id: editingUser.id,
+              first_name: editingUser.first_name || '',
+              last_name: editingUser.last_name || '',
+              full_name: `${editingUser.first_name || ''} ${editingUser.last_name || ''}`.trim(),
+              email: editingUser.email || '',
+              phone_number: editingUser.phone_number || editingUser.phone || '',
+              role: editingUser.role ? editingUser.role.toLowerCase() : 'user',
+              emergency_contact_name: editingUser.emergency_contact_name || '',
+              emergency_contact_number: editingUser.emergency_contact_number || '',
+              password: "",
+            }}
             onSubmit={handleUpdateUser}
             generatePassword={generatePassword}
             submitText="Update User"
@@ -474,219 +1200,18 @@ const Admin = () => {
               setShowEditUser(false);
               setEditingUser(null);
             }}
+            loading={loading}
           />
         </Modal>
       )}
     </div>
   );
 
-  // Stub Settings and Data tabs
-  const SettingsTab = () => (
-    <div className="p-6 text-gray-700">
-      <p>System Settings content goes here.</p>
-    </div>
-  );
-
-  const DataTab = () => (
-    <div className="p-6 text-gray-700">
-      <p>Data Management content goes here.</p>
-    </div>
-  );
-
-  // Simple reusable modal component
-  const Modal = ({ children, onClose, title }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded shadow-lg max-w-lg w-full">
-        <div className="flex justify-between items-center border-b px-6 py-3">
-          <h3 className="text-lg font-semibold">{title}</h3>
-          <button onClick={onClose} className="text-xl font-bold leading-none">&times;</button>
-        </div>
-        <div className="p-6">{children}</div>
-      </div>
-    </div>
-  );
-
-  // Device form component for Add/Edit
-  const DeviceForm = ({ deviceData, setDeviceData, users, onSubmit, submitText, onCancel }) => (
-    <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
-      <div className="space-y-4">
-        <div>
-          <label className="block mb-1 font-medium">Device ID</label>
-          <input
-            type="text"
-            value={deviceData.id}
-            onChange={(e) => setDeviceData({ ...deviceData, id: e.target.value })}
-            className="w-full border rounded px-3 py-2"
-            required
-            disabled={submitText === "Update Device"} // Disable editing id when updating
-          />
-        </div>
-        <div>
-          <label className="block mb-1 font-medium">Site Name</label>
-          <input
-            type="text"
-            value={deviceData.siteName}
-            onChange={(e) => setDeviceData({ ...deviceData, siteName: e.target.value })}
-            className="w-full border rounded px-3 py-2"
-            required
-          />
-        </div>
-        <div>
-          <label className="block mb-1 font-medium">Device Name</label>
-          <input
-            type="text"
-            value={deviceData.deviceName}
-            onChange={(e) => setDeviceData({ ...deviceData, deviceName: e.target.value })}
-            className="w-full border rounded px-3 py-2"
-            required
-          />
-        </div>
-        <div>
-          <label className="block mb-1 font-medium">Assigned User</label>
-          <select
-            value={deviceData.assignedUser}
-            onChange={(e) => setDeviceData({ ...deviceData, assignedUser: e.target.value })}
-            className="w-full border rounded px-3 py-2"
-            required
-          >
-            <option value="">Select User</option>
-            {users.filter(u => u.role.toLowerCase() === "user").map(u => (
-              <option key={u.id} value={u.name}>{u.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block mb-1 font-medium">Latitude</label>
-            <input
-              type="number"
-              step="0.000001"
-              value={deviceData.latitude}
-              onChange={(e) => setDeviceData({ ...deviceData, latitude: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              required
-            />
-          </div>
-          <div>
-            <label className="block mb-1 font-medium">Longitude</label>
-            <input
-              type="number"
-              step="0.000001"
-              value={deviceData.longitude}
-              onChange={(e) => setDeviceData({ ...deviceData, longitude: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              required
-            />
-          </div>
-        </div>
-        <div className="flex justify-end space-x-3 pt-4">
-          <button type="button" onClick={onCancel} className="border px-4 py-2 rounded">
-            Cancel
-          </button>
-          <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-            {submitText}
-          </button>
-        </div>
-      </div>
-    </form>
-  );
-
-  // User form component Add/Edit
-  const UserForm = ({ userData, setUserData, onSubmit, generatePassword, submitText, onCancel }) => (
-    <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }}>
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block mb-1 font-medium">First Name</label>
-            <input
-              type="text"
-              value={userData.firstName}
-              onChange={(e) => setUserData({ ...userData, firstName: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              required
-            />
-          </div>
-          <div>
-            <label className="block mb-1 font-medium">Last Name</label>
-            <input
-              type="text"
-              value={userData.lastName}
-              onChange={(e) => setUserData({ ...userData, lastName: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-              required
-            />
-          </div>
-        </div>
-        <div>
-          <label className="block mb-1 font-medium">Email</label>
-          <input
-            type="email"
-            value={userData.email}
-            onChange={(e) => setUserData({ ...userData, email: e.target.value })}
-            className="w-full border rounded px-3 py-2"
-            required
-            disabled={submitText === "Update User"} // Disable email edit on update
-          />
-        </div>
-        <div>
-          <label className="block mb-1 font-medium">Phone</label>
-          <input
-            type="tel"
-            value={userData.phone}
-            onChange={(e) => setUserData({ ...userData, phone: e.target.value })}
-            className="w-full border rounded px-3 py-2"
-            required
-          />
-        </div>
-        <div>
-          <label className="block mb-1 font-medium">Role</label>
-          <select
-            value={userData.role}
-            onChange={(e) => setUserData({ ...userData, role: e.target.value })}
-            className="w-full border rounded px-3 py-2"
-            required
-          >
-            <option value="user">User</option>
-            <option value="operator">Operator</option>
-            <option value="admin">Admin</option>
-          </select>
-        </div>
-        <div>
-          <label className="block mb-1 font-medium">Password</label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={userData.password || ""}
-              onChange={(e) => setUserData({ ...userData, password: e.target.value })}
-              className="flex-1 border rounded px-3 py-2"
-              placeholder="Enter password or generate one"
-              required={submitText === "Add User"}
-              disabled={submitText === "Update User"} // Disable password editing on update for simplicity
-            />
-            {submitText === "Add User" && (
-              <button
-                type="button"
-                onClick={generatePassword}
-                className="border px-3 py-2 rounded flex items-center gap-1"
-              >
-                <Key size={16} /> Generate
-              </button>
-            )}
-          </div>
-        </div>
-        <div className="flex justify-end space-x-3 pt-4">
-          <button type="button" onClick={onCancel} className="border px-4 py-2 rounded">
-            Cancel
-          </button>
-          <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-            {submitText}
-          </button>
-        </div>
-      </div>
-    </form>
-  );
-const SystemSettings = () => (
+  // System Settings component
+  const SystemSettings = () => (
     <div className="space-y-6">
+      {error && <ErrorMessage message={error} onClose={() => setError(null)} />}
+      
       <h2 className="text-xl font-semibold text-gray-900">System Settings</h2>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -699,7 +1224,8 @@ const SystemSettings = () => (
               </label>
               <input
                 type="number"
-                defaultValue={30}
+                value={settings.sosAlertThreshold}
+                onChange={(e) => setSettingsState({...settings, sosAlertThreshold: parseInt(e.target.value)})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -709,7 +1235,8 @@ const SystemSettings = () => (
               </label>
               <input
                 type="number"
-                defaultValue={20}
+                value={settings.lowBatteryThreshold}
+                onChange={(e) => setSettingsState({...settings, lowBatteryThreshold: parseInt(e.target.value)})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -717,7 +1244,11 @@ const SystemSettings = () => (
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Vibration Sensitivity
               </label>
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              <select 
+                value={settings.vibrationSensitivity}
+                onChange={(e) => setSettingsState({...settings, vibrationSensitivity: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
                 <option>Low</option>
                 <option>Medium</option>
                 <option>High</option>
@@ -735,7 +1266,8 @@ const SystemSettings = () => (
               </label>
               <input
                 type="text"
-                defaultValue="192.168.1.100"
+                value={settings.lorawanGatewayIP}
+                onChange={(e) => setSettingsState({...settings, lorawanGatewayIP: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -745,7 +1277,8 @@ const SystemSettings = () => (
               </label>
               <input
                 type="number"
-                defaultValue={60}
+                value={settings.dataUpdateInterval}
+                onChange={(e) => setSettingsState({...settings, dataUpdateInterval: parseInt(e.target.value)})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -755,6 +1288,8 @@ const SystemSettings = () => (
               </label>
               <input
                 type="url"
+                value={settings.backupServerURL}
+                onChange={(e) => setSettingsState({...settings, backupServerURL: e.target.value})}
                 placeholder="https://backup.rescuelink.com"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
@@ -764,16 +1299,23 @@ const SystemSettings = () => (
       </div>
 
       <div className="flex justify-end">
-        <button className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-          <Save className="h-4 w-4 mr-2" />
+        <button 
+          onClick={handleSaveSettings}
+          disabled={loading}
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+        >
+          {loading ? <Loader className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
           Save Settings
         </button>
       </div>
     </div>
   );
 
+  // Data Management component
   const DataManagement = () => (
     <div className="space-y-6">
+      {error && <ErrorMessage message={error} onClose={() => setError(null)} />}
+      
       <h2 className="text-xl font-semibold text-gray-900">Data Management</h2>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -781,112 +1323,65 @@ const SystemSettings = () => (
           <h3 className="text-lg font-medium text-gray-900 mb-4">Export Data</h3>
           <p className="text-gray-600 mb-4">Download historical data for analysis and reporting.</p>
           <div className="space-y-3">
-            <button className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+            <button 
+              onClick={() => handleExport('devices', 'csv')}
+              disabled={loading}
+              className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
               <Download className="h-4 w-4 mr-2" />
               Export Device Data (CSV)
             </button>
-            <button className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+            <button 
+              onClick={() => handleExport('alerts', 'csv')}
+              disabled={loading}
+              className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
               <Download className="h-4 w-4 mr-2" />
-              Export Alert History (CSV)
+              Export Alert Data (CSV)
             </button>
-            <button className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+            <button 
+              onClick={() => handleExport('reports', 'pdf')}
+              disabled={loading}
+              className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
               <Download className="h-4 w-4 mr-2" />
-              Export Analytics Report (PDF)
+              Export Reports (PDF)
             </button>
           </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Import Data</h3>
-          <p className="text-gray-600 mb-4">Import device configurations and historical data.</p>
-          <div className="space-y-3">
-            <button className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
-              <Upload className="h-4 w-4 mr-2" />
-              Import Device Configuration
-            </button>
-            <button className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
-              <Upload className="h-4 w-4 mr-2" />
-              Import Historical Data
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Database Maintenance</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center p-4 border border-gray-200 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600">2.4 GB</div>
-            <div className="text-sm text-gray-600">Database Size</div>
-          </div>
-          <div className="text-center p-4 border border-gray-200 rounded-lg">
-            <div className="text-2xl font-bold text-green-600">15,847</div>
-            <div className="text-sm text-gray-600">Total Records</div>
-          </div>
-          <div className="text-center p-4 border border-gray-200 rounded-lg">
-            <div className="text-2xl font-bold text-orange-600">7 days</div>
-            <div className="text-sm text-gray-600">Last Backup</div>
-          </div>
-        </div>
-        
-        <div className="mt-6 flex space-x-4">
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            Create Backup
-          </button>
-          <button className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
-            Optimize Database
-          </button>
-          <button className="px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors">
-            Clean Old Data
-          </button>
         </div>
       </div>
     </div>
   );
-  // Main tab content selector
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case "devices":
-        return <DeviceManagement />;
-      case "users":
-        return <UserManagement />;
-      case "settings":
-        return <SystemSettings/>
-      case "data":
-        return <DataManagement />;
-      default:
-        return null;
-    }
-  };
 
   return (
-    <div className="p-6">
-      {/* Header */}
+    <div className="p-6 max-w-7xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6">Admin Dashboard</h1>
+      
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">Administration</h1>
-        <p className="text-gray-600">Manage devices, users, and system configuration</p>
+        <nav className="flex space-x-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 rounded-t-lg flex items-center gap-2 ${
+                activeTab === tab.id
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              <tab.icon size={16} />
+              {tab.label}
+            </button>
+          ))}
+        </nav>
       </div>
 
-      {/* Tabs */}
-      <nav className="mb-4 border-b border-gray-300 flex space-x-4">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-1 border-b-2 pb-2 ${
-              activeTab === tab.id
-                ? "border-blue-600 text-blue-600 font-semibold"
-                : "border-transparent text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <tab.icon size={20} />
-            {tab.label}
-          </button>
-        ))}
-      </nav>
-
-      {/* Content */}
-      {renderTabContent()}
+      <div className="bg-white rounded-b-lg shadow p-6">
+        {activeTab === "devices" && <DeviceManagement />}
+        {activeTab === "users" && <UserManagement />}
+        {activeTab === "settings" && <SystemSettings />}
+        {activeTab === "data" && <DataManagement />}
+      </div>
     </div>
   );
 };

@@ -220,4 +220,4 @@ class WebSocketService {
 export const wsService = new WebSocketService();
 
 // Initialize WebSocket service
-wsService.initialize();
+// wsService.initialize();

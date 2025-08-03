@@ -1,5 +1,4 @@
-// API service for RescueLink FastAPI backend integration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://192.168.0.169:8000';
 
 class ApiError extends Error {
   constructor(message, status, data = null) {
@@ -31,15 +30,20 @@ class ApiService {
 
   // Helper method to handle API responses
   async handleResponse(response) {
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (jsonError) {
+      // Handle non-JSON or empty responses
+      data = { detail: 'Invalid response format from server' };
+    }
     
     if (!response.ok) {
       if (response.status === 401) {
-        // Token expired, clear storage and redirect to login
         this.logout();
         throw new ApiError('Authentication required', 401, data);
       }
-      throw new ApiError(data.detail || 'API request failed', response.status, data);
+      throw new ApiError(data.detail || `API request failed (status ${response.status})`, response.status, data);
     }
     
     return data;
@@ -69,7 +73,6 @@ class ApiService {
 
   // Authentication methods
   async login(email, password) {
-    // Use the exact format from your API documentation
     const response = await fetch(`${this.baseURL}/api/v1/auth/login`, {
       method: 'POST',
       headers: {
@@ -90,7 +93,6 @@ class ApiService {
       this.token = data.access_token;
       localStorage.setItem('authToken', data.access_token);
       
-      // Try to get user profile after successful login
       try {
         const profile = await this.getProfile();
         localStorage.setItem('userRole', profile.role);
@@ -100,7 +102,6 @@ class ApiService {
         return { token: data.access_token, user: profile };
       } catch (profileError) {
         console.warn('Failed to get profile due to CORS, using email-based role detection:', profileError);
-        // Extract role from email for demo purposes
         let role = 'user';
         if (email.includes('admin')) {
           role = 'admin';
@@ -165,10 +166,6 @@ class ApiService {
   // Device methods
   async getDevices() {
     return await this.request('/api/v1/devices');
-  }
-
-  async getMyDevices() {
-    return await this.request('/api/v1/devices/my-devices');
   }
 
   async getDevice(deviceId) {
@@ -278,10 +275,10 @@ class ApiService {
     return await this.getTrendAnalytics();
   }
 
-  // Real-time subscription placeholder (will be replaced with WebSocket service)
+  // Real-time subscription placeholder
   subscribeToRealTimeUpdates(callback) {
     console.warn('Real-time updates should use WebSocket service');
-    return () => {}; // Return empty unsubscribe function
+    return () => {};
   }
 
   // Utility methods
@@ -305,3 +302,140 @@ class ApiService {
 // Create and export API instance
 export const api = new ApiService();
 export { ApiError };
+
+// Admin-specific API exports for backward compatibility with Admin component
+export const userAPI = {
+  getAll: async () => {
+    const data = await api.request('/api/v1/auth/users');
+    return { data };
+  },
+  create: async (user) => {
+    const data = await api.signup(user); // Use /api/v1/auth/signup
+    return { data };
+  },
+  update: async (id, user) => {
+    const data = await api.request(`/api/v1/auth/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(user),
+    });
+    return { data };
+  },
+  updateUser: async (id, user) => {
+    const data = await api.request(`/api/v1/auth/update/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(user),
+    });
+    return { data };
+  },
+  delete: async (id) => {
+    const data = await api.request(`/api/v1/auth/users/${id}`, {
+      method: 'DELETE',
+    });
+    return { data };
+  },
+  getById: async (id) => {
+    const data = await api.request(`/api/v1/auth/users/${id}`);
+    return { data };
+  },
+};
+
+export const deviceAPI = {
+  getAll: async () => {
+    const data = await api.getDevices();
+    return { data };
+  },
+  create: async (device) => {
+    const data = await api.addDevice(device);
+    return { data };
+  },
+  update: async (id, device) => {
+    const data = await api.updateDevice(id, device);
+    return { data };
+  },
+  updateDevice: async (id, device) => {
+    const data = await api.updateDevice(id, device);
+    return { data };
+  },
+  delete: async (id) => {
+    const data = await api.deleteDevice(id);
+    return { data };
+  },
+};
+
+export const settingsAPI = {
+  get: async () => {
+    const data = await api.request('/api/v1/settings');
+    return { data };
+  },
+  update: async (settings) => {
+    const data = await api.request('/api/v1/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+    return { data };
+  },
+};
+
+export const exportAPI = {
+  devices: async (format = 'csv') => {
+    const data = await api.request(`/api/v1/export/devices?format=${format}`, {
+      includeAuth: true,
+      headers: {
+        'Accept': format === 'csv' ? 'text/csv' : 'application/pdf',
+      },
+    });
+    return { data };
+  },
+  alerts: async (format = 'csv') => {
+    const data = await api.request(`/api/v1/export/alerts?format=${format}`, {
+      includeAuth: true,
+      headers: {
+        'Accept': format === 'csv' ? 'text/csv' : 'application/pdf',
+      },
+    });
+    return { data };
+  },
+  reports: async (format = 'pdf') => {
+    const data = await api.request(`/api/v1/export/reports?format=${format}`, {
+      includeAuth: true,
+      headers: {
+        'Accept': 'application/pdf',
+      },
+    });
+    return { data };
+  },
+};
+
+export const authAPI = {
+  login: async (credentials) => {
+    const data = await api.login(credentials.email, credentials.password);
+    return { data };
+  },
+  register: async (userData) => {
+    const data = await api.signup(userData);
+    return { data };
+  },
+  logout: async () => {
+    await api.logout();
+    return { data: { message: 'Logged out successfully' } };
+  },
+  getCurrentUser: async () => {
+    const data = await api.getProfile();
+    return { data };
+  },
+  refreshToken: async () => {
+    const data = await api.refreshToken();
+    return { data: { access_token: data } };
+  },
+};
+
+async function fetchUserFullNameById(userId) {
+  try {
+    const response = await userAPI.getById(userId);
+    const user = response.data;
+    return user.full_name;
+  } catch (error) {
+    console.error('Failed to fetch user:', error);
+    return null;
+  }
+}
