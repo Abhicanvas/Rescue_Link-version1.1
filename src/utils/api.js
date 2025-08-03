@@ -1,5 +1,5 @@
 // API service for RescueLink FastAPI backend integration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://192.168.0.169:8000';
 
 class ApiError extends Error {
   constructor(message, status, data = null) {
@@ -305,3 +305,122 @@ class ApiService {
 // Create and export API instance
 export const api = new ApiService();
 export { ApiError };
+
+// Admin-specific API exports for backward compatibility with your Admin component
+export const userAPI = {
+  getAll: async () => {
+    const data = await api.request('/api/v1/auth/users');
+    return { data }; // Wrap in data property for compatibility
+  },
+  create: async (user) => {
+    const data = await api.request('/api/v1/auth/users', {
+      method: 'POST',
+      body: JSON.stringify(user),
+    });
+    return { data };
+  },
+  update: async (id, user) => {
+    const data = await api.request(`/api/v1/auth/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(user),
+    });
+    return { data };
+  },
+  delete: async (id) => {
+    const data = await api.request(`/api/v1/auth/users/${id}`, {
+      method: 'DELETE',
+    });
+    return { data };
+  },
+  getById: async (id) => {
+    const data = await api.request(`/api/v1/auth/users/${id}`);
+    return { data };
+  },
+};
+
+export const deviceAPI = {
+  getAll: async () => {
+    const data = await api.getDevices();
+    return { data };
+  },
+  create: async (device) => {
+    const data = await api.addDevice(device);
+    return { data };
+  },
+  update: async (id, device) => {
+    const data = await api.updateDevice(id, device);
+    return { data };
+  },
+  delete: async (id) => {
+    const data = await api.deleteDevice(id);
+    return { data };
+  },
+};
+
+export const settingsAPI = {
+  get: async () => {
+    const data = await api.request('/api/v1/settings');
+    return { data };
+  },
+  update: async (settings) => {
+    const data = await api.request('/api/v1/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+    return { data };
+  },
+};
+
+export const exportAPI = {
+  devices: async (format = 'csv') => {
+    const data = await api.request(`/api/v1/export/devices?format=${format}`, {
+      includeAuth: true,
+      headers: {
+        'Accept': format === 'csv' ? 'text/csv' : 'application/pdf',
+      },
+    });
+    return { data };
+  },
+  alerts: async (format = 'csv') => {
+    const data = await api.request(`/api/v1/export/alerts?format=${format}`, {
+      includeAuth: true,
+      headers: {
+        'Accept': format === 'csv' ? 'text/csv' : 'application/pdf',
+      },
+    });
+    return { data };
+  },
+  reports: async (format = 'pdf') => {
+    const data = await api.request(`/api/v1/export/reports?format=${format}`, {
+      includeAuth: true,
+      headers: {
+        'Accept': 'application/pdf',
+      },
+    });
+    return { data };
+  },
+};
+
+// Auth API for additional admin functionality
+export const authAPI = {
+  login: async (credentials) => {
+    const data = await api.login(credentials.email, credentials.password);
+    return { data };
+  },
+  register: async (userData) => {
+    const data = await api.signup(userData);
+    return { data };
+  },
+  logout: async () => {
+    await api.logout();
+    return { data: { message: 'Logged out successfully' } };
+  },
+  getCurrentUser: async () => {
+    const data = await api.getProfile();
+    return { data };
+  },
+  refreshToken: async () => {
+    const token = await api.refreshToken();
+    return { data: { access_token: token } };
+  },
+};
