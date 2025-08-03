@@ -11,7 +11,6 @@ import {
   Save,
   Key,
   Loader,
-  Loader,
 } from "lucide-react";
 import { deviceAPI, userAPI, settingsAPI, exportAPI, api, ApiError } from '../services/adminServices.js';
 
@@ -378,20 +377,6 @@ const Admin = () => {
   const [showEditDevice, setShowEditDevice] = useState(false);
   const [showAddUser, setShowAddUser] = useState(false);
   const [showEditUser, setShowEditUser] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  // State for devices and users
-  const [devices, setDevices] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [settings, setSettingsState] = useState({
-    sosAlertThreshold: 30,
-    lowBatteryThreshold: 20,
-    vibrationSensitivity: "Medium",
-    lorawanGatewayIP: "192.168.1.100",
-    dataUpdateInterval: 60,
-    backupServerURL: "",
-  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -988,7 +973,8 @@ const Admin = () => {
           disabled={loading}
           className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
         >
-          ×
+          <Plus className="mr-1" size={16} />
+          Add Device
         </button>
       </div>
 
@@ -1226,8 +1212,6 @@ const Admin = () => {
     <div className="space-y-6">
       {error && <ErrorMessage message={error} onClose={() => setError(null)} />}
       
-      {error && <ErrorMessage message={error} onClose={() => setError(null)} />}
-      
       <h2 className="text-xl font-semibold text-gray-900">System Settings</h2>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1242,8 +1226,6 @@ const Admin = () => {
                 type="number"
                 value={settings.sosAlertThreshold}
                 onChange={(e) => setSettingsState({...settings, sosAlertThreshold: parseInt(e.target.value)})}
-                value={settings.sosAlertThreshold}
-                onChange={(e) => setSettingsState({...settings, sosAlertThreshold: parseInt(e.target.value)})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -1255,8 +1237,6 @@ const Admin = () => {
                 type="number"
                 value={settings.lowBatteryThreshold}
                 onChange={(e) => setSettingsState({...settings, lowBatteryThreshold: parseInt(e.target.value)})}
-                value={settings.lowBatteryThreshold}
-                onChange={(e) => setSettingsState({...settings, lowBatteryThreshold: parseInt(e.target.value)})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -1264,11 +1244,6 @@ const Admin = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Vibration Sensitivity
               </label>
-              <select 
-                value={settings.vibrationSensitivity}
-                onChange={(e) => setSettingsState({...settings, vibrationSensitivity: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
               <select 
                 value={settings.vibrationSensitivity}
                 onChange={(e) => setSettingsState({...settings, vibrationSensitivity: e.target.value})}
@@ -1293,8 +1268,6 @@ const Admin = () => {
                 type="text"
                 value={settings.lorawanGatewayIP}
                 onChange={(e) => setSettingsState({...settings, lorawanGatewayIP: e.target.value})}
-                value={settings.lorawanGatewayIP}
-                onChange={(e) => setSettingsState({...settings, lorawanGatewayIP: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -1306,8 +1279,6 @@ const Admin = () => {
                 type="number"
                 value={settings.dataUpdateInterval}
                 onChange={(e) => setSettingsState({...settings, dataUpdateInterval: parseInt(e.target.value)})}
-                value={settings.dataUpdateInterval}
-                onChange={(e) => setSettingsState({...settings, dataUpdateInterval: parseInt(e.target.value)})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
@@ -1317,8 +1288,6 @@ const Admin = () => {
               </label>
               <input
                 type="url"
-                value={settings.backupServerURL}
-                onChange={(e) => setSettingsState({...settings, backupServerURL: e.target.value})}
                 value={settings.backupServerURL}
                 onChange={(e) => setSettingsState({...settings, backupServerURL: e.target.value})}
                 placeholder="https://backup.rescuelink.com"
@@ -1336,12 +1305,6 @@ const Admin = () => {
           className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
         >
           {loading ? <Loader className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-        <button 
-          onClick={handleSaveSettings}
-          disabled={loading}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-        >
-          {loading ? <Loader className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
           Save Settings
         </button>
       </div>
@@ -1349,11 +1312,8 @@ const Admin = () => {
   );
 
   // Data Management component
-  // Data Management component
   const DataManagement = () => (
     <div className="space-y-6">
-      {error && <ErrorMessage message={error} onClose={() => setError(null)} />}
-      
       {error && <ErrorMessage message={error} onClose={() => setError(null)} />}
       
       <h2 className="text-xl font-semibold text-gray-900">Data Management</h2>
@@ -1368,11 +1328,6 @@ const Admin = () => {
               disabled={loading}
               className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
-            <button 
-              onClick={() => handleExport('devices', 'csv')}
-              disabled={loading}
-              className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
               <Download className="h-4 w-4 mr-2" />
               Export Device Data (CSV)
             </button>
@@ -1381,19 +1336,9 @@ const Admin = () => {
               disabled={loading}
               className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
-            <button 
-              onClick={() => handleExport('alerts', 'csv')}
-              disabled={loading}
-              className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
               <Download className="h-4 w-4 mr-2" />
               Export Alert Data (CSV)
             </button>
-            <button 
-              onClick={() => handleExport('reports', 'pdf')}
-              disabled={loading}
-              className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
             <button 
               onClick={() => handleExport('reports', 'pdf')}
               disabled={loading}
