@@ -38,7 +38,7 @@ const Layout = ({ children }) => {
       return [
         ...baseNav,
         { name: 'Device Map', href: '/devices', icon: Map },
-        { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+        // { name: 'Analytics', href: '/analytics', icon: BarChart3 },
         { name: 'Alerts', href: '/alerts', icon: AlertTriangle },
         { name: 'SOS Trigger', href: '/sos-trigger', icon: Zap },
         { name: 'Admin Lock', href: '/admin-lock', icon: Lock },
