@@ -71,11 +71,21 @@ const Alerts = () => {
       await api.resolveAlert(alertId);
       setAlerts(prev => prev.map(alert => 
         alert.alert_id === alertId 
-          ? { ...alert, resolved_status: true }
+          ? { ...alert, resolved_status: true, resolvedAt: new Date().toISOString() }
           : alert
       ));
     } catch (error) {
       console.error('Error resolving alert:', error);
+    }
+  };
+
+  const handleDeescalateAlert = async () => {
+    // Refresh the alerts list after de-escalation
+    try {
+      const alertsData = await api.getAlerts();
+      setAlerts(alertsData);
+    } catch (error) {
+      console.error('Error refreshing alerts:', error);
     }
   };
 
@@ -251,6 +261,7 @@ const Alerts = () => {
                       key={alert.alert_id} 
                       alert={alert} 
                       onResolve={handleResolveAlert}
+                      onDeescalate={handleDeescalateAlert}
                     />
                   ))}
                 </div>
@@ -268,6 +279,7 @@ const Alerts = () => {
                     key={alert.alert_id} 
                     alert={alert} 
                     onResolve={handleResolveAlert}
+                    onDeescalate={handleDeescalateAlert}
                   />
                 ))}
               </div>

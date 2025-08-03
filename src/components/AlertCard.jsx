@@ -1,15 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   AlertTriangle, 
   AlertCircle, 
   Info,
   Clock,
-  CheckCircle
+  CheckCircle,
+  Shield
 } from 'lucide-react';
+import { api } from '../utils/api';
 
-// Remove all TypeScript types and interfaces
-
-const AlertCard = ({ alert, onResolve }) => {
+const AlertCard = ({ alert, onResolve, onDeescalate }) => {
+  const [isDeescalating, setIsDeescalating] = useState(false);
   const getSeverityColor = (severity) => {
     switch (severity) {
       case 'High':
@@ -55,8 +56,66 @@ const AlertCard = ({ alert, onResolve }) => {
     return new Date(timestamp).toLocaleString();
   };
 
+  const getAlertId = (alert) => {
+    return alert.alertId || alert.alert_id || alert.id;
+  };
+
+  const getDeviceId = (alert) => {
+    return alert.device_id || alert.deviceId || alert.device;
+  };
+
+  const handleDeescalate = async () => {
+    const deviceId = getDeviceId(alert);
+    
+    if (!deviceId) {
+      alert('Error: Device ID not found in alert data.');
+      return;
+    }
+    
+    const confirmed = window.confirm(
+      `Are you sure you want to de-escalate this alert and send reset command to device ${deviceId}?`
+    );
+    
+    if (!confirmed) return;
+    
+    setIsDeescalating(true);
+    
+    try {
+      console.log('De-escalating alert with data:', {
+        device_id: deviceId,
+        panic_flag: 0,
+        panic_reason: 0,
+        trigger_flag: false,
+        alert_id: getAlertId(alert)
+      });
+      
+      await api.sendDownlink(
+        deviceId,
+        0, // panic_flag: 0 for de-escalation
+        0, // panic_reason: 0 for de-escalation
+        false, // trigger_flag: false for de-escalation
+        getAlertId(alert)
+      );
+      
+      // Show success message
+      alert('Alert de-escalated successfully! Reset command sent to device.');
+      
+      // Call parent callback to refresh alerts list
+      if (onDeescalate) {
+        onDeescalate(getAlertId(alert));
+      }
+    } catch (error) {
+      console.error('De-escalation error:', error);
+      alert(`Failed to de-escalate alert: ${error.message}`);
+    } finally {
+      setIsDeescalating(false);
+    }
+  };
+
+  const isResolved = alert.isResolved || alert.is_resolved || alert.resolved_status;
+  
   return (
-    <div className={`border rounded-lg p-4 ${getSeverityColor(alert.severity)} ${alert.resolved_status ? 'opacity-60' : ''}`}>
+    <div className={`alert-card border rounded-lg p-4 ${getSeverityColor(alert.severity)} ${isResolved ? 'resolved opacity-60' : 'active'}`}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center">
           {getSeverityIcon(alert.severity)}
@@ -71,7 +130,13 @@ const AlertCard = ({ alert, onResolve }) => {
             {alert.type}
           </span>
           
-          {alert.resolved_status && (
+          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+            isResolved ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}>
+            {isResolved ? 'Resolved' : 'Active'}
+          </span>
+          
+          {isResolved && (
             <CheckCircle className="h-4 w-4 text-green-600" />
           )}
         </div>
@@ -83,16 +148,43 @@ const AlertCard = ({ alert, onResolve }) => {
         <div className="flex items-center text-xs opacity-75">
           <Clock className="h-3 w-3 mr-1" />
           {formatTimestamp(alert.timestamp)}
+          {isResolved && alert.resolvedAt && (
+            <span className="ml-2">
+              • Resolved: {formatTimestamp(alert.resolvedAt)}
+            </span>
+          )}
         </div>
         
-        {!alert.resolved_status && onResolve && (
-          <button
-            onClick={() => onResolve(alert.alert_id)}
-            className="text-xs bg-white bg-opacity-50 hover:bg-opacity-75 px-3 py-1 rounded-full transition-colors duration-200"
-          >
-            Mark Resolved
-          </button>
-        )}
+        <div className="flex items-center space-x-2">
+          {!isResolved && onResolve && (
+            <button
+              onClick={() => onResolve(getAlertId(alert))}
+              className="text-xs bg-white bg-opacity-50 hover:bg-opacity-75 px-3 py-1 rounded-full transition-colors duration-200"
+            >
+              Mark Resolved
+            </button>
+          )}
+          
+          {!isResolved && (
+            <button
+              onClick={handleDeescalate}
+              disabled={isDeescalating}
+              className="inline-flex items-center text-xs bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-full transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isDeescalating ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1"></div>
+                  De-escalating...
+                </div>
+              ) : (
+                <>
+                  <Shield className="h-3 w-3 mr-1" />
+                  De-escalate Alert
+                </>
+              )}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

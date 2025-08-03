@@ -1,3 +1,46 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* SOS Triggers and Alerts Styling */
+@layer components {
+  .sos-form {
+    @apply max-w-2xl mx-auto;
+  }
+  
+  .alert-card {
+    @apply transition-all duration-200 hover:shadow-md;
+  }
+  
+  .alert-card.resolved {
+    @apply bg-gray-50 border-gray-300;
+  }
+  
+  .alert-card.active {
+    @apply border-l-4 border-l-red-500;
+  }
+  
+  .status-badge {
+    @apply inline-flex items-center px-2 py-1 rounded-full text-xs font-medium;
+  }
+  
+  .status-badge.active {
+    @apply bg-red-100 text-red-800;
+  }
+  
+  .status-badge.resolved {
+    @apply bg-green-100 text-green-800;
+  }
+  
+  .btn-deescalate {
+    @apply bg-yellow-500 hover:bg-yellow-600 text-white border-none transition-colors;
+  }
+  
+  .trigger-button {
+    @apply bg-red-600 hover:bg-red-700 text-white font-bold transition-colors;
+  }
+  
+  .panic-message-dropdown {
+    @apply w-full border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent;
+  }
+}

@@ -278,6 +278,27 @@ class ApiService {
     return await this.getTrendAnalytics();
   }
 
+  // Downlink methods
+  async sendDownlink(deviceId, panicFlag, panicReason, triggerFlag, alertId = null) {
+    const payload = {
+      device_id: deviceId,
+      panic_flag: panicFlag,
+      panic_reason: panicReason,
+      trigger_flag: triggerFlag
+    };
+
+    if (alertId) {
+      payload.alert_id = alertId;
+    }
+
+    console.log('Sending downlink request with payload:', payload);
+
+    return await this.request('/api/v1/downlink/send-downlink', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
   // Real-time subscription placeholder (will be replaced with WebSocket service)
   subscribeToRealTimeUpdates(callback) {
     console.warn('Real-time updates should use WebSocket service');
