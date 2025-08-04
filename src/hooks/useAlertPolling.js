@@ -19,6 +19,7 @@ export const useAlertPolling = (intervalMs = 60000, enabled = true) => {
   const { user } = useAuth();
   const intervalRef = useRef(null);
   const previousAlertsRef = useRef([]);
+  const isInitialLoadRef = useRef(true);
 
   const userRole = user?.role || 'user';
 
@@ -44,18 +45,25 @@ export const useAlertPolling = (intervalMs = 60000, enabled = true) => {
       }));
       
       // Check for new alerts by comparing with previous alerts
-      const previousAlertIds = new Set(previousAlertsRef.current.map(a => a.alert_id));
-      const newAlerts = normalizedAlerts.filter(alert => 
-        !previousAlertIds.has(alert.alert_id) && !alert.resolved_status
-      );
-      
-      // If there are new alerts, set the newest one as newAlert for notifications
-      if (newAlerts.length > 0) {
-        const newestAlert = newAlerts.sort((a, b) => 
-          new Date(b.timestamp) - new Date(a.timestamp)
-        )[0];
-        setNewAlert(newestAlert);
-        console.log('Alert Polling - New alert detected:', newestAlert);
+      // Skip new alert detection on initial load to prevent false notifications
+      if (!isInitialLoadRef.current) {
+        const previousAlertIds = new Set(previousAlertsRef.current.map(a => a.alert_id));
+        const newAlerts = normalizedAlerts.filter(alert => 
+          !previousAlertIds.has(alert.alert_id) && !alert.resolved_status
+        );
+        
+        // If there are new alerts, set the newest one as newAlert for notifications
+        if (newAlerts.length > 0) {
+          const newestAlert = newAlerts.sort((a, b) => 
+            new Date(b.timestamp) - new Date(a.timestamp)
+          )[0];
+          setNewAlert(newestAlert);
+          console.log('Alert Polling - New alert detected:', newestAlert);
+        }
+      } else {
+        // Mark initial load as complete
+        isInitialLoadRef.current = false;
+        console.log('Alert Polling - Initial load completed, future polls will check for new alerts');
       }
       
       setAlerts(normalizedAlerts);

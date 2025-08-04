@@ -5,35 +5,29 @@ import {
   Download, 
   CheckCircle, 
   Clock,
-  Search
+  Search,
+  RefreshCw
 } from 'lucide-react';
 import { api } from '../utils/api';
+import { useAlertPolling } from '../hooks/useAlertPolling';
 import AlertCard from '../components/AlertCard';
 
 const Alerts = () => {
-  const [alerts, setAlerts] = useState([]);
   const [filteredAlerts, setFilteredAlerts] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [filterSeverity, setFilterSeverity] = useState('all');
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    const loadAlerts = async () => {
-      try {
-        const alertsData = await api.getAlerts();
-        setAlerts(alertsData);
-        setFilteredAlerts(alertsData);
-      } catch (error) {
-        console.error('Error loading alerts:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadAlerts();
-  }, []);
+  // Use alert polling hook for automatic alert updates every 1 minute
+  const {
+    alerts,
+    loading,
+    error,
+    lastUpdate,
+    isPolling,
+    refreshAlerts
+  } = useAlertPolling(60000, true); // Poll every 1 minute
 
   useEffect(() => {
     let filtered = alerts;
@@ -50,8 +44,8 @@ const Alerts = () => {
 
     // Filter by status
     if (filterStatus !== 'all') {
-      const isResolved = filterStatus === 'resolved';
-      filtered = filtered.filter(alert => alert.resolved_status === isResolved);
+      const shouldShowResolved = filterStatus === 'resolved';
+      filtered = filtered.filter(alert => isResolved(alert) === shouldShowResolved);
     }
 
     // Filter by search term
@@ -69,24 +63,16 @@ const Alerts = () => {
   const handleResolveAlert = async (alertId) => {
     try {
       await api.resolveAlert(alertId);
-      setAlerts(prev => prev.map(alert => 
-        alert.alert_id === alertId 
-          ? { ...alert, resolved_status: true, resolvedAt: new Date().toISOString() }
-          : alert
-      ));
+      // Refresh alerts using the polling hook
+      refreshAlerts();
     } catch (error) {
       console.error('Error resolving alert:', error);
     }
   };
 
   const handleDeescalateAlert = async () => {
-    // Refresh the alerts list after de-escalation
-    try {
-      const alertsData = await api.getAlerts();
-      setAlerts(alertsData);
-    } catch (error) {
-      console.error('Error refreshing alerts:', error);
-    }
+    // Refresh the alerts list after de-escalation using the polling hook
+    refreshAlerts();
   };
 
   const exportAlerts = () => {
@@ -105,9 +91,33 @@ const Alerts = () => {
     document.body.removeChild(link);
   };
 
-  const urgentAlerts = filteredAlerts.filter(a => !a.resolved_status && a.severity === 'High');
-  const activeAlerts = filteredAlerts.filter(a => !a.resolved_status);
-  const resolvedAlerts = filteredAlerts.filter(a => a.resolved_status);
+  // Calculate counts from all alerts (not filtered alerts) for stats display
+  // Check for various resolved status field formats
+  const isResolved = (alert) => {
+    return alert.resolved_status === true || 
+           alert.isResolved === true || 
+           alert.is_resolved === true ||
+           alert.status === 'resolved' ||
+           alert.resolved === true;
+  };
+  
+  const urgentAlerts = alerts.filter(a => !isResolved(a) && a.severity === 'High');
+  const activeAlerts = alerts.filter(a => !isResolved(a));
+  const resolvedAlerts = alerts.filter(a => isResolved(a));
+  
+  // Debug: Log alert structure
+  if (alerts.length > 0) {
+    console.log('Sample alert structure:', alerts[0]);
+    console.log('Alert counts:', {
+      total: alerts.length,
+      urgent: urgentAlerts.length,
+      active: activeAlerts.length,
+      resolved: resolvedAlerts.length
+    });
+  }
+  
+  // Get urgent alerts from filtered results for display section
+  const filteredUrgentAlerts = filteredAlerts.filter(a => !isResolved(a) && a.severity === 'High');
 
   if (loading) {
     return (
@@ -124,6 +134,24 @@ const Alerts = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+          <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+          <h3 className="text-lg font-medium text-red-800 mb-2">Error Loading Alerts</h3>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={refreshAlerts}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -133,29 +161,38 @@ const Alerts = () => {
           <p className="text-gray-600">Monitor and manage all system alerts and incidents</p>
         </div>
         
-        <button
-          onClick={exportAlerts}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-        >
-          <Download className="h-4 w-4 mr-2" />
-          Export Alerts
-        </button>
+        <div className="flex items-center space-x-3">
+          {/* Polling Status */}
+          <div className={`flex items-center text-xs px-3 py-1 rounded-full ${isPolling ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'} space-x-2`}>
+            <span className="mr-1">
+              {isPolling ? 'Updating...' : 'Auto-refresh'}
+            </span>
+            {lastUpdate && (
+              <span className="text-xs text-gray-500">
+                {lastUpdate.toLocaleTimeString()}
+              </span>
+            )}
+            <button
+              onClick={refreshAlerts}
+              className="hover:opacity-80 transition-opacity"
+              title="Refresh Alerts"
+            >
+              <RefreshCw className={`h-3 w-3 ${isPolling ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+          
+          <button
+            onClick={exportAlerts}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export Alerts
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Urgent Alerts</p>
-              <p className="text-2xl font-bold text-red-600">{urgentAlerts.length}</p>
-            </div>
-            <div className="h-12 w-12 bg-red-100 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="h-6 w-6 text-red-600" />
-            </div>
-          </div>
-        </div>
-
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -194,7 +231,7 @@ const Alerts = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
@@ -242,21 +279,21 @@ const Alerts = () => {
             <option value="resolved">Resolved</option>
           </select>
         </div>
-      </div>
+      </div> */}
 
       {/* Alerts List */}
       <div className="space-y-4">
         {filteredAlerts.length > 0 ? (
           <>
             {/* Urgent Alerts Section */}
-            {urgentAlerts.length > 0 && (
+            {filteredUrgentAlerts.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold text-red-600 mb-4 flex items-center">
                   <AlertTriangle className="h-5 w-5 mr-2" />
-                  Urgent Alerts ({urgentAlerts.length})
+                  Urgent Alerts ({filteredUrgentAlerts.length})
                 </h2>
                 <div className="space-y-4">
-                  {urgentAlerts.map((alert) => (
+                  {filteredUrgentAlerts.map((alert) => (
                     <AlertCard 
                       key={alert.alert_id} 
                       alert={alert} 

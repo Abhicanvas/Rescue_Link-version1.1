@@ -117,17 +117,47 @@ const Dashboard = () => {
     );
   };
 
+  // Helper function to check if alert is resolved
+  const isAlertResolved = (alert) => {
+    return alert.resolved_status === true || 
+           alert.isResolved === true || 
+           alert.is_resolved === true ||
+           alert.status === 'resolved' ||
+           alert.resolved === true;
+  };
+
   // Calculate dashboard metrics
-  const activeDevices = devices.filter(d => d.device_status === 'Active').length;
-  const disconnectedDevices = devices.filter(d => d.device_status === 'Disconnected').length;
-  const faultyDevices = devices.filter(d => d.device_status === 'Faulty').length;
-  const urgentAlerts = filteredAlerts.filter(a => !a.resolved_status && a.severity === 'High').length;
+  const activeDevices = devices.filter(d => (d.status === 'Active' || d.status === 'ACTIVE') || (d.device_status === 'Active' || d.device_status === 'ACTIVE')).length;
+  const disconnectedDevices = devices.filter(d => (d.status === 'Disconnected' || d.status === 'DISCONNECTED') || (d.device_status === 'Disconnected' || d.device_status === 'DISCONNECTED')).length;
+  const faultyDevices = devices.filter(d => (d.status === 'Faulty' || d.status === 'FAULTY') || (d.device_status === 'Faulty' || d.device_status === 'FAULTY')).length;
+  const urgentAlerts = alerts.filter(a => !isAlertResolved(a) && a.severity === 'High').length;
+
+  // Debug: Log device structure and counts
+  if (devices.length > 0) {
+    console.log('Sample device structure:', devices[0]);
+    console.log('Device counts:', {
+      total: devices.length,
+      active: activeDevices,
+      disconnected: disconnectedDevices,
+      faulty: faultyDevices
+    });
+  }
+  
+  // Debug: Log alert structure and counts
+  if (alerts.length > 0) {
+    console.log('Sample alert structure:', alerts[0]);
+    console.log('Alert counts:', {
+      total: alerts.length,
+      urgent: urgentAlerts,
+      unresolved: alerts.filter(a => !isAlertResolved(a)).length
+    });
+  }
   const avgBatteryLevel = devices.length > 0
     ? Math.round(devices.reduce((sum, d) => sum + (d.telemetry?.battery || d.battery_level || 0), 0) / devices.length)
     : 0;
 
   const recentAlerts = filteredAlerts
-    .filter(a => !a.resolved_status)
+    .filter(a => !isAlertResolved(a))
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
     .slice(0, 5);
 
@@ -137,7 +167,7 @@ const Dashboard = () => {
   if (userRole === 'user') {
     const userDevice = devices[0];
     const userAlerts = filteredAlerts
-      .filter(a => !a.resolved_status)
+      .filter(a => !isAlertResolved(a))
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
     const loading = devicesLoading || alertsLoading;
@@ -362,7 +392,7 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="mt-4 text-xs text-gray-500">
-            {filteredAlerts.filter(a => !a.resolved_status).length} total unresolved
+            {alerts.filter(a => !isAlertResolved(a)).length} total unresolved
           </div>
         </div>
 

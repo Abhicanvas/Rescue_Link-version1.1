@@ -65,6 +65,10 @@ const AlertCard = ({ alert, onResolve, onDeescalate }) => {
     return alert.device_id || alert.deviceId || alert.device;
   };
 
+  const getDeviceName = (alert) => {
+    return alert.device_name || alert.deviceName || alert.site_name || alert.device_id || getDeviceId(alert) || 'Unknown Device';
+  };
+
   const handleDeescalate = async () => {
     const deviceId = getDeviceId(alert);
     
@@ -122,7 +126,7 @@ const AlertCard = ({ alert, onResolve, onDeescalate }) => {
           {getSeverityIcon(alert.severity)}
           <div className="ml-3">
             <h4 className="text-sm font-semibold">{alert.type}</h4>
-            <p className="text-xs opacity-75">Device: {alert.device_id}</p>
+            <p className="text-xs opacity-75">Device: {getDeviceName(alert)}</p>
           </div>
         </div>
         
