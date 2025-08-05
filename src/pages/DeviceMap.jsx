@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Search, Layers } from 'lucide-react';
+import { MapPin, Search } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -27,37 +27,54 @@ const DeviceMap = () => {
   // Use device polling hook for automatic device updates
   const { devices, loading } = useDevicePolling(60000, true); // Poll every 1 minute
 
+  // --- START: CORRECTED FILTERING LOGIC ---
   useEffect(() => {
+    // Helper to reliably get device status, handling different fields and cases
+    const getDeviceStatus = (device) => (device.device_status || device.status || 'unknown').toLowerCase();
+
     let filtered = devices;
 
-    // Filter by status
+    // 1. Filter by status
     if (filterStatus !== 'all') {
-      filtered = filtered.filter(device => device.device_status === filterStatus);
+      const lowercasedFilter = filterStatus.toLowerCase();
+      if (lowercasedFilter === 'disconnected') {
+        // Include 'inactive' when filtering for 'disconnected'
+        filtered = filtered.filter(device => ['disconnected', 'inactive'].includes(getDeviceStatus(device)));
+      } else {
+        filtered = filtered.filter(device => getDeviceStatus(device) === lowercasedFilter);
+      }
     }
 
-    // Filter by search term
+    // 2. Filter by search term (applied to the already status-filtered list)
     if (searchTerm) {
-      filtered = filtered.filter(device => 
-        device.device_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (device.site_name && device.site_name.toLowerCase().includes(searchTerm.toLowerCase()))
+      const lowercasedSearchTerm = searchTerm.toLowerCase();
+      filtered = filtered.filter(device =>
+        String(device.device_id || '').toLowerCase().includes(lowercasedSearchTerm) ||
+        String(device.site_name || '').toLowerCase().includes(lowercasedSearchTerm) ||
+        String(device.device_name || '').toLowerCase().includes(lowercasedSearchTerm)
       );
     }
 
     setFilteredDevices(filtered);
   }, [devices, filterStatus, searchTerm]);
+  // --- END: CORRECTED FILTERING LOGIC ---
 
   // Create custom markers based on device status
   const createCustomIcon = (device) => {
+    // Use the same robust helper function here
+    const getDeviceStatus = (device) => (device.device_status || device.status || 'unknown').toLowerCase();
+    
     const getColor = (status) => {
       switch (status) {
-        case 'Active': return '#10b981'; // green-500
-        case 'Disconnected': return '#6b7280'; // gray-500
-        case 'Faulty': return '#ef4444'; // red-500
+        case 'active': return '#10b981'; // green-500
+        case 'disconnected': return '#6b7280'; // gray-500
+        case 'inactive': return '#6b7280'; // gray-500
+        case 'faulty': return '#ef4444'; // red-500
         default: return '#6b7280';
       }
     };
 
-    const color = getColor(device.device_status);
+    const color = getColor(getDeviceStatus(device));
     const hasAlert = device.SOS_triggered || device.accident_reported || device.telemetry?.sos_flag === 1;
 
     return new L.DivIcon({
@@ -103,14 +120,21 @@ const DeviceMap = () => {
     );
   }
 
-  // Calculate center position based on devices with location data or use default
+  // --- START: CORRECTED COUNT CALCULATION ---
+  // Calculate counts and center position using robust logic
+  const getDeviceStatus = (device) => (device.device_status || device.status || 'unknown').toLowerCase();
+  const activeCount = devices.filter(d => getDeviceStatus(d) === 'active').length;
+  const disconnectedCount = devices.filter(d => ['disconnected', 'inactive'].includes(getDeviceStatus(d))).length;
+  const faultyCount = devices.filter(d => getDeviceStatus(d) === 'faulty').length;
+
   const devicesWithLocation = devices.filter(d => d.location && d.location.lat && d.location.long);
   const centerPosition = devicesWithLocation.length > 0
     ? [
         devicesWithLocation.reduce((sum, d) => sum + d.location.lat, 0) / devicesWithLocation.length,
         devicesWithLocation.reduce((sum, d) => sum + d.location.long, 0) / devicesWithLocation.length
       ]
-    : [23.8103, 90.4125]; // Default to Dhaka, Bangladesh
+    : [20.5937, 78.9629]; // Default to center of India
+  // --- END: CORRECTED COUNT CALCULATION ---
 
   return (
     <div className="p-6 space-y-6">
@@ -127,7 +151,7 @@ const DeviceMap = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Search devices..."
+              placeholder="Search by ID or name..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
@@ -155,7 +179,7 @@ const DeviceMap = () => {
           <div style={{ height: '400px', width: '100%' }}>
             <MapContainer
               center={centerPosition}
-              zoom={10}
+              zoom={5} // Adjusted zoom for a country view
               style={{ height: '100%', width: '100%' }}
               zoomControl={true}
             >
@@ -175,13 +199,13 @@ const DeviceMap = () => {
                   }}
                 >
                   <Popup>
-                    <div className="p-2 z-index-50">
+                    <div className="p-2">
                       <div className="font-semibold text-lg mb-2">{device.device_id}</div>
                       <div className="space-y-1 text-sm">
                         <div>Status: <span className={`font-medium ${
-                          device.device_status === 'Active' ? 'text-green-600' :
-                          device.device_status === 'Faulty' ? 'text-red-600' : 'text-gray-600'
-                        }`}>{device.device_status || 'Unknown'}</span></div>
+                          getDeviceStatus(device) === 'active' ? 'text-green-600' :
+                          getDeviceStatus(device) === 'faulty' ? 'text-red-600' : 'text-gray-600'
+                        }`}>{device.device_status || device.status || 'Unknown'}</span></div>
                         <div>Battery: {device.telemetry?.battery || device.battery_level || 'N/A'}%</div>
                         {(device.site_name || device.device_name) && <div>Site: {device.site_name || device.device_name}</div>}
                         {(device.SOS_triggered || device.sos_flag === 1 || device.telemetry?.sos_flag === 1) && <div className="text-red-600 font-medium">🚨 SOS TRIGGERED</div>}
@@ -224,10 +248,11 @@ const DeviceMap = () => {
             <h3 className="text-lg font-semibold text-gray-900">
               Devices ({filteredDevices.length})
             </h3>
+            {/* Using the corrected counts */}
             <div className="text-sm text-gray-500">
-              {devices.filter(d => d.device_status === 'Active').length} active,{' '}
-              {devices.filter(d => d.device_status === 'Disconnected').length} disconnected,{' '}
-              {devices.filter(d => d.device_status === 'Faulty').length} faulty
+              {activeCount} active,{' '}
+              {disconnectedCount} disconnected,{' '}
+              {faultyCount} faulty
               {devicesWithLocation.length !== devices.length && (
                 <span className="block mt-1 text-orange-600">
                   {devicesWithLocation.length} of {devices.length} devices have location data
@@ -255,7 +280,7 @@ const DeviceMap = () => {
         </div>
       </div>
 
-      {/* Device Detail Modal - FIXED Z-INDEX */}
+      {/* Device Detail Modal */}
       {selectedDevice && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style={{ zIndex: 9999 }}>
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-screen overflow-y-auto" style={{ zIndex: 10000 }}>
@@ -273,7 +298,7 @@ const DeviceMap = () => {
                 </button>
               </div>
               
-              <DeviceCard device={selectedDevice} />
+              <DeviceCard device={selectedDevice} isDetailedView={true} />
               
               <div className="mt-6 grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 p-4 rounded-lg">

@@ -29,70 +29,7 @@ const Alerts = () => {
     refreshAlerts
   } = useAlertPolling(60000, true); // Poll every 1 minute
 
-  useEffect(() => {
-    let filtered = alerts;
-
-    // Filter by severity
-    if (filterSeverity !== 'all') {
-      filtered = filtered.filter(alert => alert.severity === filterSeverity);
-    }
-
-    // Filter by type
-    if (filterType !== 'all') {
-      filtered = filtered.filter(alert => alert.type === filterType);
-    }
-
-    // Filter by status
-    if (filterStatus !== 'all') {
-      const shouldShowResolved = filterStatus === 'resolved';
-      filtered = filtered.filter(alert => isResolved(alert) === shouldShowResolved);
-    }
-
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(alert => 
-        alert.device_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        alert.message.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        alert.type.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    setFilteredAlerts(filtered);
-  }, [alerts, filterSeverity, filterType, filterStatus, searchTerm]);
-
-  const handleResolveAlert = async (alertId) => {
-    try {
-      await api.resolveAlert(alertId);
-      // Refresh alerts using the polling hook
-      refreshAlerts();
-    } catch (error) {
-      console.error('Error resolving alert:', error);
-    }
-  };
-
-  const handleDeescalateAlert = async () => {
-    // Refresh the alerts list after de-escalation using the polling hook
-    refreshAlerts();
-  };
-
-  const exportAlerts = () => {
-    const csvContent = "data:text/csv;charset=utf-8," + 
-      "Alert ID,Device ID,Type,Severity,Message,Timestamp,Status\n" +
-      filteredAlerts.map(alert => 
-        `${alert.alert_id},${alert.device_id},${alert.type},${alert.severity},"${alert.message}",${alert.timestamp},${alert.resolved_status ? 'Resolved' : 'Active'}`
-      ).join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", "rescuelink_alerts.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Calculate counts from all alerts (not filtered alerts) for stats display
-  // Check for various resolved status field formats
+  // Helper function to check for various resolved status field formats
   const isResolved = (alert) => {
     return alert.resolved_status === true || 
            alert.isResolved === true || 
@@ -100,24 +37,96 @@ const Alerts = () => {
            alert.status === 'resolved' ||
            alert.resolved === true;
   };
-  
-  const urgentAlerts = alerts.filter(a => !isResolved(a) && a.severity === 'High');
-  const activeAlerts = alerts.filter(a => !isResolved(a));
-  const resolvedAlerts = alerts.filter(a => isResolved(a));
-  
-  // Debug: Log alert structure
-  if (alerts.length > 0) {
-    console.log('Sample alert structure:', alerts[0]);
-    console.log('Alert counts:', {
-      total: alerts.length,
-      urgent: urgentAlerts.length,
-      active: activeAlerts.length,
-      resolved: resolvedAlerts.length
+
+  // --- START: CORRECTED FILTERING LOGIC ---
+  useEffect(() => {
+    const lowercasedSearchTerm = searchTerm.toLowerCase();
+
+    const filtered = alerts.filter(alert => {
+      // Filter by severity (case-insensitive)
+      if (filterSeverity !== 'all' && alert.severity?.toLowerCase() !== filterSeverity.toLowerCase()) {
+        return false;
+      }
+
+      // Filter by type (case-insensitive)
+      if (filterType !== 'all' && alert.type?.toLowerCase() !== filterType.toLowerCase()) {
+        return false;
+      }
+
+      // Filter by status (using the robust isResolved function)
+      if (filterStatus !== 'all') {
+        const shouldShowResolved = filterStatus === 'resolved';
+        if (isResolved(alert) !== shouldShowResolved) {
+          return false;
+        }
+      }
+
+      // Filter by search term (case-insensitive and safe)
+      if (searchTerm) {
+        const inDeviceId = String(alert.device_id || '').toLowerCase().includes(lowercasedSearchTerm);
+        const inMessage = String(alert.message || '').toLowerCase().includes(lowercasedSearchTerm);
+        const inType = String(alert.type || '').toLowerCase().includes(lowercasedSearchTerm);
+        if (!inDeviceId && !inMessage && !inType) {
+          return false;
+        }
+      }
+
+      return true; // Keep the alert if it passes all active filters
     });
-  }
+
+    setFilteredAlerts(filtered);
+  }, [alerts, filterSeverity, filterType, filterStatus, searchTerm]);
+  // --- END: CORRECTED FILTERING LOGIC ---
+
+  const handleResolveAlert = async (alertId) => {
+    try {
+      await api.resolveAlert(alertId);
+      refreshAlerts();
+    } catch (error) {
+      console.error('Error resolving alert:', error);
+    }
+  };
+
+  const handleDeescalateAlert = async () => {
+    refreshAlerts();
+  };
+
+  // --- START: CORRECTED EXPORT LOGIC ---
+  const exportAlerts = () => {
+    const csvContent = "data:text/csv;charset=utf-8," + 
+      "Alert ID,Device ID,Type,Severity,Message,Timestamp,Status\n" +
+      filteredAlerts.map(alert => {
+        const row = [
+          alert.alert_id,
+          alert.device_id,
+          alert.type,
+          alert.severity,
+          `"${String(alert.message || '').replace(/"/g, '""')}"`, // Escape quotes in message
+          alert.timestamp,
+          isResolved(alert) ? 'Resolved' : 'Active' // Use robust helper function
+        ].join(",");
+        return row;
+      }).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `rescuelink_alerts_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+  // --- END: CORRECTED EXPORT LOGIC ---
+
+  // Calculate counts from all alerts (not filtered alerts) for stats display
+  const activeAlertsCount = alerts.filter(a => !isResolved(a)).length;
+  const resolvedAlertsCount = alerts.filter(a => isResolved(a)).length;
   
-  // Get urgent alerts from filtered results for display section
-  const filteredUrgentAlerts = filteredAlerts.filter(a => !isResolved(a) && a.severity === 'High');
+  // --- START: CORRECTED DISPLAY LISTS ---
+  // Partition the filtered alerts into two distinct groups to avoid duplication
+  const urgentFiltered = filteredAlerts.filter(a => !isResolved(a) && a.severity === 'High');
+  const otherFiltered = filteredAlerts.filter(a => isResolved(a) || a.severity !== 'High');
+  // --- END: CORRECTED DISPLAY LISTS ---
 
   if (loading) {
     return (
@@ -197,7 +206,7 @@ const Alerts = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Active Alerts</p>
-              <p className="text-2xl font-bold text-orange-600">{activeAlerts.length}</p>
+              <p className="text-2xl font-bold text-orange-600">{activeAlertsCount}</p>
             </div>
             <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
               <Clock className="h-6 w-6 text-orange-600" />
@@ -209,7 +218,7 @@ const Alerts = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Resolved</p>
-              <p className="text-2xl font-bold text-green-600">{resolvedAlerts.length}</p>
+              <p className="text-2xl font-bold text-green-600">{resolvedAlertsCount}</p>
             </div>
             <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
               <CheckCircle className="h-6 w-6 text-green-600" />
@@ -231,14 +240,14 @@ const Alerts = () => {
       </div>
 
       {/* Filters */}
-      {/* <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search alerts..."
+                placeholder="Search by Device ID, Type, or Message..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -279,21 +288,21 @@ const Alerts = () => {
             <option value="resolved">Resolved</option>
           </select>
         </div>
-      </div> */}
+      </div>
 
       {/* Alerts List */}
-      <div className="space-y-4">
+      <div className="space-y-6">
         {filteredAlerts.length > 0 ? (
           <>
             {/* Urgent Alerts Section */}
-            {filteredUrgentAlerts.length > 0 && (
+            {urgentFiltered.length > 0 && (
               <div>
                 <h2 className="text-lg font-semibold text-red-600 mb-4 flex items-center">
                   <AlertTriangle className="h-5 w-5 mr-2" />
-                  Urgent Alerts ({filteredUrgentAlerts.length})
+                  Urgent Alerts ({urgentFiltered.length})
                 </h2>
                 <div className="space-y-4">
-                  {filteredUrgentAlerts.map((alert) => (
+                  {urgentFiltered.map((alert) => (
                     <AlertCard 
                       key={alert.alert_id} 
                       alert={alert} 
@@ -305,28 +314,30 @@ const Alerts = () => {
               </div>
             )}
 
-            {/* All Alerts Section */}
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                All Alerts ({filteredAlerts.length})
-              </h2>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {filteredAlerts.map((alert) => (
-                  <AlertCard 
-                    key={alert.alert_id} 
-                    alert={alert} 
-                    onResolve={handleResolveAlert}
-                    onDeescalate={handleDeescalateAlert}
-                  />
-                ))}
+            {/* Other Alerts Section */}
+            {otherFiltered.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  Other Alerts ({otherFiltered.length})
+                </h2>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {otherFiltered.map((alert) => (
+                    <AlertCard 
+                      key={alert.alert_id} 
+                      alert={alert} 
+                      onResolve={handleResolveAlert}
+                      onDeescalate={handleDeescalateAlert}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </>
         ) : (
-          <div className="text-center py-12">
+          <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
             <AlertTriangle className="h-12 w-12 mx-auto text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No alerts found</h3>
-            <p className="text-gray-500">No alerts match your current filters.</p>
+            <p className="text-gray-500">No alerts match your current filters. Try adjusting your search.</p>
           </div>
         )}
       </div>

@@ -126,11 +126,21 @@ const Dashboard = () => {
            alert.resolved === true;
   };
 
-  // Calculate dashboard metrics
-  const activeDevices = devices.filter(d => (d.status === 'Active' || d.status === 'ACTIVE') || (d.device_status === 'Active' || d.device_status === 'ACTIVE')).length;
-  const disconnectedDevices = devices.filter(d => (d.status === 'Disconnected' || d.status === 'DISCONNECTED') || (d.device_status === 'Disconnected' || d.device_status === 'DISCONNECTED')).length;
-  const faultyDevices = devices.filter(d => (d.status === 'Faulty' || d.status === 'FAULTY') || (d.device_status === 'Faulty' || d.device_status === 'FAULTY')).length;
+  // --- START: CORRECTED METRIC CALCULATION ---
+  // Helper function to normalize and get device status
+  const getDeviceStatus = (device) => {
+    // Check for 'device_status' or 'status' and convert to lowercase
+    return (device.device_status || device.status || 'unknown').toLowerCase();
+  };
+  
+  // Calculate dashboard metrics using the helper function
+  const activeDevices = devices.filter(d => getDeviceStatus(d) === 'active').length;
+  // **FIX**: Count both 'disconnected' and 'inactive' as disconnected states
+  const disconnectedDevices = devices.filter(d => ['disconnected', 'inactive'].includes(getDeviceStatus(d))).length;
+  const faultyDevices = devices.filter(d => getDeviceStatus(d) === 'faulty').length;
   const urgentAlerts = alerts.filter(a => !isAlertResolved(a) && a.severity === 'High').length;
+  // --- END: CORRECTED METRIC CALCULATION ---
+
 
   // Debug: Log device structure and counts
   if (devices.length > 0) {
@@ -260,12 +270,12 @@ const Dashboard = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Device Status</span>
                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  userDevice.status === 'Active' ? 'bg-green-100 text-green-800' :
-                  userDevice.status === 'Disconnected' ? 'bg-gray-100 text-gray-800' :
-                  'bg-red-100 text-red-800'
-                    }`}>
+                   userDevice.status === 'Active' ? 'bg-green-100 text-green-800' :
+                   userDevice.status === 'Disconnected' ? 'bg-gray-100 text-gray-800' :
+                   'bg-red-100 text-red-800'
+                   }`}>
                   {userDevice.status || 'Unknown'}
-                </span>
+                 </span>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -466,17 +476,17 @@ const Dashboard = () => {
                 <h2 className="text-lg font-semibold text-gray-900">Device Status</h2>
                 <div className="flex space-x-2">
                   <Link
-                    to="/devices"
+                    to="/devicemap" /* Corrected path if needed */
                     className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
                   >
-                    View Map
+                    
                   </Link>
-                  <span className="text-gray-300">|</span>
+                  {/* <span className="text-gray-300">|</span> */}
                   <Link
                     to="/analytics"
                     className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
                   >
-                    Analytics
+                    
                   </Link>
                 </div>
               </div>

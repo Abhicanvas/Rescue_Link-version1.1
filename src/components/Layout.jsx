@@ -262,7 +262,7 @@ const Layout = ({ children }) => {
   }
   
   .marquee-content img {
-    height: 3.5rem; /* Equivalent to h-8 */
+    height: 2rem; /* Equivalent to h-8 */
     margin: 0 1.5rem; /* Equivalent to mx-6 */
     opacity: 0.7;
     transition: opacity 0.3s, transform 0.3s;
