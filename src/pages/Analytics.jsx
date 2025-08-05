@@ -15,31 +15,32 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { api } from '../utils/api';
+import { useDevicePolling } from '../hooks/useDevicePolling';
+import { formatLocalDate, formatLocalTimestamp } from '../utils/timezone';
 import { TrendingUp, Activity, AlertTriangle, Battery } from 'lucide-react';
 
 const Analytics = () => {
   const [analyticsData, setAnalyticsData] = useState([]);
-  const [devices, setDevices] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('7d');
 
+  // Use device polling hook for automatic device updates
+  const { devices, loading: devicesLoading } = useDevicePolling(60000, true); // Poll every 1 minute
+
   useEffect(() => {
-    const loadData = async () => {
+    const loadAnalyticsData = async () => {
       try {
-        const [analyticsDataResponse, devicesData] = await Promise.all([
-          api.getAnalyticsData(),
-          api.getDevices()
-        ]);
+        setAnalyticsLoading(true);
+        const analyticsDataResponse = await api.getAnalyticsData();
         setAnalyticsData(analyticsDataResponse);
-        setDevices(devicesData);
       } catch (error) {
         console.error('Error loading analytics data:', error);
       } finally {
-        setLoading(false);
+        setAnalyticsLoading(false);
       }
     };
 
-    loadData();
+    loadAnalyticsData();
   }, [timeRange]);
 
   // Calculate device status distribution
@@ -58,11 +59,13 @@ const Analytics = () => {
 
   // Calculate alert frequency data
   const alertFrequencyData = analyticsData.map(data => ({
-    date: new Date(data.date).toLocaleDateString(),
+    date: formatLocalDate(data.date),
     alerts: data.alerts,
     incidents: data.incidents
   }));
 
+  const loading = analyticsLoading || devicesLoading;
+  
   if (loading) {
     return (
       <div className="p-6">
@@ -322,7 +325,7 @@ const Analytics = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(device.timestamp).toLocaleString()}
+                    {formatLocalTimestamp(device.timestamp)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {device.SOS_triggered || device.accident_reported ? (

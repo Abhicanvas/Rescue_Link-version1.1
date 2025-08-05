@@ -3,7 +3,7 @@ import { MapPin, Search, Layers } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { api } from '../utils/api';
+import { useDevicePolling } from '../hooks/useDevicePolling';
 import DeviceCard from '../components/DeviceCard';
 
 // Fix for default marker icons in React-Leaflet
@@ -19,28 +19,13 @@ L.Icon.Default.mergeOptions({
 });
 
 const DeviceMap = () => {
-  const [devices, setDevices] = useState([]);
   const [filteredDevices, setFilteredDevices] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    const loadDevices = async () => {
-      try {
-        const devicesData = await api.getDevices();
-        setDevices(devicesData);
-        setFilteredDevices(devicesData);
-      } catch (error) {
-        console.error('Error loading devices:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadDevices();
-  }, []);
+  // Use device polling hook for automatic device updates
+  const { devices, loading } = useDevicePolling(60000, true); // Poll every 1 minute
 
   useEffect(() => {
     let filtered = devices;

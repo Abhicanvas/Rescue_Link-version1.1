@@ -6,3 +6,10 @@ export {
   useDeviceUpdates, 
   useAlertUpdates 
 } from './useWebSocket';
+export { 
+  useDevicePolling, 
+  useDeviceDataPolling 
+} from './useDevicePolling';
+export { 
+  useAlertPolling 
+} from './useAlertPolling';

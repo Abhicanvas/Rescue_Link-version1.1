@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { deviceAPI, userAPI, settingsAPI, exportAPI, api, ApiError } from '../services/adminServices.js';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://rescuelink-server.tail8351b9.ts.net';
+
 // DeviceForm with internal state and API-consistent field names
 const DeviceForm = React.memo(({ initialData, users, onSubmit, submitText, onCancel, loading }) => {
   const [deviceData, setDeviceData] = useState(initialData);
@@ -81,13 +83,29 @@ const DeviceForm = React.memo(({ initialData, users, onSubmit, submitText, onCan
             required
           >
             <option value="">Select User</option>
-            {users
-              .filter(u => (u.role || '').toLowerCase() === "user")
-              .map(u => (
+            {(() => {
+              console.log('DeviceForm - All users:', users);
+              console.log('DeviceForm - Users count:', users.length);
+              
+              // More lenient filtering - check for user role in various formats
+              const filteredUsers = users.filter(u => {
+                const role = (u.role || '').toLowerCase();
+                return role === "user" || role === "users" || !u.role; // Include users without role too
+              });
+              
+              console.log('DeviceForm - Filtered users:', filteredUsers);
+              console.log('DeviceForm - Filtered users count:', filteredUsers.length);
+              
+              // Show all users temporarily for debugging if no filtered users
+              const usersToShow = filteredUsers.length > 0 ? filteredUsers : users;
+              console.log('DeviceForm - Users to show:', usersToShow);
+              
+              return usersToShow.map(u => (
                 <option key={u.id} value={u.id}>
-                  {u.full_name}
+                  {u.full_name || u.name || u.email || `User ${u.id}`} {u.role && `(${u.role})`}
                 </option>
-              ))}
+              ));
+            })()}
           </select>
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -410,6 +428,25 @@ const Admin = () => {
           console.log('API connection test: authenticated');
           const profile = await api.getProfile();
           console.log('API connection successful, user:', profile);
+          
+          // Test users API directly
+          try {
+            console.log('Testing users API directly...');
+            const usersResponse = await fetch(`${API_BASE_URL}/api/v1/auth/users`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            console.log('Users API direct response status:', usersResponse.status);
+            const usersData = await usersResponse.json();
+            console.log('Users API direct response data:', usersData);
+          } catch (directApiError) {
+            console.error('Direct users API test failed:', directApiError);
+          }
+          
         } else {
           console.warn('API connection test: not authenticated');
           setError('Authentication required. Please log in.');
@@ -436,6 +473,11 @@ const Admin = () => {
   useEffect(() => {
     if (activeTab === "devices") {
       fetchDevices();
+      // Also fetch users for device assignment dropdown
+      if (users.length === 0) {
+        console.log('Fetching users for device management...');
+        fetchUsers();
+      }
     } else if (activeTab === "users") {
       fetchUsers();
     } else if (activeTab === "settings") {
@@ -487,10 +529,46 @@ const Admin = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await userAPI.getAll();
-      console.log('Users API Response:', response.data);
       
-      const userData = extractResponseData(response);
+      // Try the primary users endpoint
+      let response;
+      let userData;
+      
+      try {
+        response = await userAPI.getAll();
+        console.log('Users API Response (primary):', response);
+        console.log('Users API Response Data (primary):', response.data);
+        userData = extractResponseData(response);
+      } catch (primaryError) {
+        console.warn('Primary users API failed, trying alternative endpoints:', primaryError);
+        
+        // Try alternative endpoints
+        try {
+          // Try direct API call to /api/v1/users (without auth prefix)
+          const altResponse = await api.request('/api/v1/users');
+          console.log('Alternative users API response:', altResponse);
+          userData = Array.isArray(altResponse) ? altResponse : altResponse.data || altResponse.users || [];
+        } catch (altError) {
+          console.warn('Alternative users API also failed:', altError);
+          throw primaryError; // Re-throw the original error
+        }
+      }
+      
+      console.log('Final extracted User Data:', userData);
+      console.log('Users array length:', Array.isArray(userData) ? userData.length : 'Not an array');
+      
+      if (Array.isArray(userData)) {
+        userData.forEach((user, index) => {
+          console.log(`User ${index}:`, {
+            id: user.id,
+            full_name: user.full_name,
+            name: user.name,
+            role: user.role,
+            email: user.email
+          });
+        });
+      }
+      
       setUsers(Array.isArray(userData) ? userData : []);
     } catch (err) {
       let errorMessage = 'Failed to fetch users';
@@ -969,7 +1047,13 @@ const Admin = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-gray-900">Device Management</h2>
         <button
-          onClick={() => setShowAddDevice(true)}
+          onClick={() => {
+            if (users.length === 0) {
+              console.log('No users loaded, fetching users...');
+              fetchUsers();
+            }
+            setShowAddDevice(true);
+          }}
           disabled={loading}
           className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
         >

@@ -8,6 +8,7 @@ import {
   Shield
 } from 'lucide-react';
 import { api } from '../utils/api';
+import { formatLocalTimestamp } from '../utils/timezone';
 
 const AlertCard = ({ alert, onResolve, onDeescalate }) => {
   const [isDeescalating, setIsDeescalating] = useState(false);
@@ -53,7 +54,7 @@ const AlertCard = ({ alert, onResolve, onDeescalate }) => {
   };
 
   const formatTimestamp = (timestamp) => {
-    return new Date(timestamp).toLocaleString();
+    return formatLocalTimestamp(timestamp);
   };
 
   const getAlertId = (alert) => {
@@ -62,6 +63,10 @@ const AlertCard = ({ alert, onResolve, onDeescalate }) => {
 
   const getDeviceId = (alert) => {
     return alert.device_id || alert.deviceId || alert.device;
+  };
+
+  const getDeviceName = (alert) => {
+    return alert.device_name || alert.deviceName || alert.site_name || alert.device_id || getDeviceId(alert) || 'Unknown Device';
   };
 
   const handleDeescalate = async () => {
@@ -121,7 +126,7 @@ const AlertCard = ({ alert, onResolve, onDeescalate }) => {
           {getSeverityIcon(alert.severity)}
           <div className="ml-3">
             <h4 className="text-sm font-semibold">{alert.type}</h4>
-            <p className="text-xs opacity-75">Device: {alert.device_id}</p>
+            <p className="text-xs opacity-75">Device: {getDeviceName(alert)}</p>
           </div>
         </div>
         

@@ -13,303 +13,151 @@ import {
 import { api } from '../utils/api';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../components/NotificationProvider';
+import { useDevicePolling } from '../hooks/useDevicePolling';
+import { useAlertPolling } from '../hooks/useAlertPolling';
+import { formatLocalTime, formatSystemTime } from '../utils/timezone';
 import DeviceCard from '../components/DeviceCard';
 import AlertCard from '../components/AlertCard';
 import LoadingSpinner, { SkeletonCard } from '../components/LoadingSpinner';
 
-// Enhanced WebSocket hook
-function useWebSocketConnection(url, onMessage) {
-  const [socket, setSocket] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState('connecting');
-  const [retryCount, setRetryCount] = useState(0);
-  const maxRetries = 5;
-
-  const connect = useCallback(() => {
-    if (!url) return;
-
-    const ws = new WebSocket(url);
-
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-      setConnectionStatus('connected');
-      setRetryCount(0);
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        onMessage(data);
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setConnectionStatus('error');
-    };
-
-    ws.onclose = (event) => {
-      console.log('WebSocket closed:', event.code, event.reason);
-      setConnectionStatus('disconnected');
-
-      if (!event.wasClean && retryCount < maxRetries) {
-        const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
-        setTimeout(() => {
-          setRetryCount(prev => prev + 1);
-          connect();
-        }, delay);
-      }
-    };
-
-    setSocket(ws);
-    return ws;
-  }, [url, onMessage, retryCount]);
-
-  useEffect(() => {
-    const ws = connect();
-
-    return () => {
-      if (ws) {
-        ws.close();
-      }
-    };
-  }, [connect]);
-
-  const reconnect = () => {
-    if (socket) {
-      socket.close();
-    }
-    setRetryCount(0);
-    connect();
-  };
-
-  return { socket, connectionStatus, reconnect };
-}
-
-// Custom hook for alert updates
-function useAlertUpdates() {
-  const { user } = useAuth();
-  const [alerts, setAlerts] = useState([]);
-  const [newAlert, setNewAlert] = useState(null);
-  const [fallbackPolling, setFallbackPolling] = useState(false);
-  const [lastUpdate, setLastUpdate] = useState(null);
-
-  const handleMessage = useCallback((data) => {
-    if (data.type === 'new_alert') {
-      const alert = normalizeAlert(data.payload);
-      setNewAlert(alert);
-      setAlerts(prev => [alert, ...prev]);
-      setLastUpdate(new Date());
-    } else if (data.type === 'alert_update') {
-      const alert = normalizeAlert(data.payload);
-      setAlerts(prev => prev.map(a =>
-        a.alert_id === alert.alert_id ? alert : a
-      ));
-      setLastUpdate(new Date());
-    }
-  }, []);
-
-  // Normalize alert structure to match API response
-  const normalizeAlert = (alert) => {
-    return {
-      alert_id: alert.alert_id || alert.id,
-      device_id: alert.device_id,
-      message: alert.message,
-      severity: alert.severity || 'Medium',
-      timestamp: alert.timestamp || new Date().toISOString(),
-      resolved_status: alert.resolved_status || false,
-      // Add any other required fields
-    };
-  };
-
-  const wsUrl = user?.token
-    ? `ws://192.168.0.169:8000/alert-updates?token=${user.token}`
-    : null;
-
-  const { connectionStatus, reconnect } = useWebSocketConnection(wsUrl, handleMessage);
-
-  // Fallback to polling if WebSocket fails
-  useEffect(() => {
-    if (connectionStatus === 'disconnected' && !fallbackPolling) {
-      const timer = setTimeout(() => {
-        setFallbackPolling(true);
-      }, 10000);
-      return () => clearTimeout(timer);
-    }
-  }, [connectionStatus, fallbackPolling]);
-
-  useEffect(() => {
-    if (fallbackPolling) {
-      const fetchAlerts = async () => {
-        try {
-          const response = await api.getAlerts();
-          setAlerts(response.data.map(normalizeAlert));
-          setLastUpdate(new Date());
-        } catch (error) {
-          console.error('Error fetching alerts:', error);
-        }
-      };
-
-      fetchAlerts();
-      const interval = setInterval(fetchAlerts, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [fallbackPolling]);
-
-  return {
-    alerts,
-    newAlert,
-    connectionStatus,
-    reconnect,
-    isUsingFallback: fallbackPolling,
-    lastUpdate
-  };
-}
 
 const Dashboard = () => {
-  const [devices, setDevices] = useState([]);
-  const [alerts, setAlerts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const { user } = useAuth();
-  const {
-    alerts: realtimeAlerts,
-    newAlert,
-    connectionStatus: alertsConnectionStatus,
-    reconnect: reconnectAlerts,
-    isUsingFallback: alertsUsingFallback,
-    lastUpdate: alertsLastUpdate
-  } = useAlertUpdates();
   const { success, error: notifyError } = useNotification();
-
+  
   const userRole = user?.role || 'user';
   const userEmail = user?.email || '';
+  
+  // Use device polling hook for automatic device updates every 1 minute
+  const {
+    devices,
+    loading: devicesLoading,
+    error: devicesError,
+    lastUpdate: devicesLastUpdate,
+    isPolling: devicesPolling,
+    refreshDevices
+  } = useDevicePolling(60000, true); // Poll every 1 minute
+  
+  // Use alert polling hook for automatic alert updates every 1 minute  
+  const {
+    alerts,
+    loading: alertsLoading,
+    error: alertsError,
+    lastUpdate: alertsLastUpdate,
+    isPolling: alertsPolling,
+    newAlert,
+    refreshAlerts
+  } = useAlertPolling(60000, true); // Poll every 1 minute
+  
+  // Temporary: Early return for debugging
+  if (!user) {
+    return (
+      <div className="p-6">
+        <div className="text-center">
+          <h1>Loading user data...</h1>
+          <p>User: {JSON.stringify(user)}</p>
+        </div>
+      </div>
+    );
+  }
 
-  // Load initial data
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  // Filter alerts for user role
+  const filteredAlerts = userRole === 'user' 
+    ? alerts.filter(a => devices.some(device => device.device_id === a.device_id))
+    : alerts;
 
-        if (userRole === 'user') {
-          const [userDevices, alertsData] = await Promise.all([
-            api.getMyDevices(),
-            api.getAlerts()
-          ]);
-
-          console.log(userDevices, alertsData)
-
-          const userAlerts = alertsData.filter(a =>
-            userDevices.some(device => device.device_id === a.deviceId)
-          );
-          setDevices(userDevices);
-          setAlerts(userAlerts);
-        } else {
-          const [devicesData, alertsData] = await Promise.all([
-            api.getDevices(),
-            api.getAlerts()
-          ]);
-          setDevices(devicesData);
-          setAlerts(alertsData);
-        }
-      } catch (error) {
-        console.error('Error loading dashboard data:', error);
-        setError(error.message);
-        notifyError('Failed to load dashboard data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [userRole, userEmail, notifyError]);
-
-  // Handle new real-time alerts notifications
+  // Handle new alert notifications
   useEffect(() => {
     if (newAlert) {
       notifyError(`New ${newAlert.severity} alert: ${newAlert.message}`);
     }
   }, [newAlert, notifyError]);
 
-  // ✅ CORRECTED: Merge real-time alerts with existing alerts
-  useEffect(() => {
-    // Only proceed if there are real-time alerts to process
-    if (realtimeAlerts.length > 0) {
-      // Get a set of the user's device IDs for quick lookups.
-      // This is essential for filtering alerts for the 'user' role.
-      const userDeviceIds = new Set(devices.map(d => d.device_id));
-
-      setAlerts(prevAlerts => {
-        // Use a Map to efficiently handle updates and prevent duplicates.
-        // Initialize it with the current alerts.
-        const alertsMap = new Map(prevAlerts.map(a => [a.alert_id, a]));
-
-        // Process each incoming real-time alert
-        for (const realtimeAlert of realtimeAlerts) {
-          // IMPORTANT: For a 'user', only add/update an alert if it belongs to them.
-          // Admins/operators will see all alerts.
-          if (userRole !== 'user' || userDeviceIds.has(realtimeAlert.device_id)) {
-            alertsMap.set(realtimeAlert.alert_id, realtimeAlert);
-          }
-        }
-
-        // Convert the map back to an array and sort it by timestamp to keep it ordered.
-        return Array.from(alertsMap.values())
-          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      });
-    }
-  }, [realtimeAlerts, devices, userRole]);
-
   // Connection status component
   const ConnectionStatus = ({ type }) => {
-    const status = type === 'alert' ? alertsConnectionStatus : 'n/a';
-    const isFallback = type === 'alert' ? alertsUsingFallback : false;
-    const reconnect = type === 'alert' ? reconnectAlerts : () => {};
-    const lastUpdate = type === 'alert' ? alertsLastUpdate : null;
+    let status, reconnect, lastUpdate, isPolling;
+    
+    if (type === 'alert') {
+      status = alertsPolling ? 'polling' : 'idle';
+      reconnect = refreshAlerts;
+      lastUpdate = alertsLastUpdate;
+      isPolling = alertsPolling;
+    } else if (type === 'device') {
+      status = devicesPolling ? 'polling' : 'idle';
+      reconnect = refreshDevices;
+      lastUpdate = devicesLastUpdate;
+      isPolling = devicesPolling;
+    }
 
     const statusMap = {
-      connected: { text: 'Live', color: 'bg-green-100 text-green-800' },
-      connecting: { text: 'Connecting...', color: 'bg-yellow-100 text-yellow-800' },
-      disconnected: { text: 'Disconnected', color: 'bg-red-100 text-red-800' },
-      error: { text: 'Error', color: 'bg-red-100 text-red-800' }
+      polling: { text: 'Updating...', color: 'bg-blue-100 text-blue-800' },
+      idle: { text: 'Auto-refresh', color: 'bg-green-100 text-green-800' }
     };
 
     return (
       <div className={`flex items-center text-xs px-3 py-1 rounded-full ${statusMap[status]?.color || 'bg-gray-100'} space-x-2`}>
         <div className="flex items-center">
-          <span className="mr-1">{isFallback ? 'Polling' : statusMap[status]?.text}</span>
+          <span className="mr-1">
+            {isPolling ? 'Updating...' : 'Auto-refresh'}
+          </span>
           {lastUpdate && (
             <span className="text-xs text-gray-500">
-              {new Date(lastUpdate).toLocaleTimeString()}
+              {formatSystemTime ? formatSystemTime(lastUpdate) : lastUpdate.toLocaleTimeString()}
             </span>
           )}
         </div>
-        {status !== 'connected' && (
-          <button
-            onClick={reconnect}
-            className="hover:opacity-80 transition-opacity"
-            title="Reconnect"
-          >
-            <RefreshCw className="h-3 w-3" />
-          </button>
-        )}
+        <button
+          onClick={reconnect}
+          className="hover:opacity-80 transition-opacity"
+          title={type === 'device' ? 'Refresh Devices' : 'Refresh Alerts'}
+        >
+          <RefreshCw className={`h-3 w-3 ${isPolling ? 'animate-spin' : ''}`} />
+        </button>
       </div>
     );
   };
 
+  // Helper function to check if alert is resolved
+  const isAlertResolved = (alert) => {
+    return alert.resolved_status === true || 
+           alert.isResolved === true || 
+           alert.is_resolved === true ||
+           alert.status === 'resolved' ||
+           alert.resolved === true;
+  };
+
   // Calculate dashboard metrics
-  const activeDevices = devices.filter(d => d.device_status === 'Active').length;
-  const disconnectedDevices = devices.filter(d => d.device_status === 'Disconnected').length;
-  const faultyDevices = devices.filter(d => d.device_status === 'Faulty').length;
-  const urgentAlerts = alerts.filter(a => !a.resolved_status && a.severity === 'High').length;
+  const activeDevices = devices.filter(d => (d.status === 'Active' || d.status === 'ACTIVE') || (d.device_status === 'Active' || d.device_status === 'ACTIVE')).length;
+  const disconnectedDevices = devices.filter(d => (d.status === 'Disconnected' || d.status === 'DISCONNECTED') || (d.device_status === 'Disconnected' || d.device_status === 'DISCONNECTED')).length;
+  const faultyDevices = devices.filter(d => (d.status === 'Faulty' || d.status === 'FAULTY') || (d.device_status === 'Faulty' || d.device_status === 'FAULTY')).length;
+  const urgentAlerts = alerts.filter(a => !isAlertResolved(a) && a.severity === 'High').length;
+
+  // Debug: Log device structure and counts
+  if (devices.length > 0) {
+    console.log('Sample device structure:', devices[0]);
+    console.log('Device counts:', {
+      total: devices.length,
+      active: activeDevices,
+      disconnected: disconnectedDevices,
+      faulty: faultyDevices
+    });
+  }
+  
+  // Debug: Log alert structure and counts
+  if (alerts.length > 0) {
+    console.log('Sample alert structure:', alerts[0]);
+    console.log('Alert counts:', {
+      total: alerts.length,
+      urgent: urgentAlerts,
+      unresolved: alerts.filter(a => !isAlertResolved(a)).length
+    });
+  }
   const avgBatteryLevel = devices.length > 0
     ? Math.round(devices.reduce((sum, d) => sum + (d.telemetry?.battery || d.battery_level || 0), 0) / devices.length)
     : 0;
 
-  const recentAlerts = alerts
-    .filter(a => !a.resolved_status)
+  const recentAlerts = filteredAlerts
+    .filter(a => !isAlertResolved(a))
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
     .slice(0, 5);
 
@@ -318,10 +166,12 @@ const Dashboard = () => {
   // User Dashboard View
   if (userRole === 'user') {
     const userDevice = devices[0];
-    const userAlerts = alerts
-      .filter(a => !a.resolved_status)
-      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-      // .slice(0, 3);
+    const userAlerts = filteredAlerts
+      .filter(a => !isAlertResolved(a))
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    const loading = devicesLoading || alertsLoading;
+    const error = devicesError || alertsError;
 
     if (loading) {
       return (
@@ -361,6 +211,7 @@ const Dashboard = () => {
       <div className="p-6 space-y-6">
         {/* Connection Status */}
         <div className="flex justify-end space-x-2">
+          <ConnectionStatus type="device" />
           <ConnectionStatus type="alert" />
         </div>
 
@@ -373,7 +224,7 @@ const Dashboard = () => {
 
           <div className="flex items-center space-x-2 text-sm text-gray-500">
             <Clock className="h-4 w-4" />
-            <span>Last updated: {new Date().toLocaleTimeString()}</span>
+            <span>Last updated: {formatSystemTime ? formatSystemTime(new Date()) : new Date().toLocaleTimeString()}</span>
           </div>
         </div>
 
@@ -455,6 +306,9 @@ const Dashboard = () => {
   }
 
   // Admin/Operator Dashboard View
+  const loading = devicesLoading || alertsLoading;
+  const error = devicesError || alertsError;
+
   if (loading) {
     return (
       <div className="p-6">
@@ -493,6 +347,7 @@ const Dashboard = () => {
     <div className="p-6 space-y-6">
       {/* Connection Status */}
       <div className="flex justify-end space-x-2">
+        <ConnectionStatus type="device" />
         <ConnectionStatus type="alert" />
       </div>
 
@@ -505,7 +360,7 @@ const Dashboard = () => {
 
         <div className="flex items-center space-x-2 text-sm text-gray-500">
           <Clock className="h-4 w-4" />
-          <span>Last updated: {new Date().toLocaleTimeString()}</span>
+          <span>Last updated: {formatSystemTime ? formatSystemTime(new Date()) : new Date().toLocaleTimeString()}</span>
         </div>
       </div>
 
@@ -537,7 +392,7 @@ const Dashboard = () => {
             </div>
           </div>
           <div className="mt-4 text-xs text-gray-500">
-            {alerts.filter(a => !a.resolved_status).length} total unresolved
+            {alerts.filter(a => !isAlertResolved(a)).length} total unresolved
           </div>
         </div>
 
