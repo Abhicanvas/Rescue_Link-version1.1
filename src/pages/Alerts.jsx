@@ -161,15 +161,6 @@ const Alerts = () => {
           <p className="text-gray-600">Monitor and manage all system alerts and incidents</p>
         </div>
         
-<<<<<<< HEAD
-        {/* <button
-          onClick={exportAlerts}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-        >
-          <Download className="h-4 w-4 mr-2" />
-          Export Alerts
-        </button> */}
-=======
         <div className="flex items-center space-x-3">
           {/* Polling Status */}
           <div className={`flex items-center text-xs px-3 py-1 rounded-full ${isPolling ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'} space-x-2`}>
@@ -198,7 +189,6 @@ const Alerts = () => {
             Export Alerts
           </button>
         </div>
->>>>>>> 8e33f14e8fc76537c8d879d840fd14f6294fbad7
       </div>
 
       {/* Stats */}

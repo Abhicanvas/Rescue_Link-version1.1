@@ -161,19 +161,6 @@ const Layout = ({ children }) => {
                 <Menu className="h-5 w-5" />
               </button>
 
-<<<<<<< HEAD
-              {/* <div className="hidden md:flex items-center ml-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search devices..."
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
-                  />
-                </div>
-              </div> */}
-=======
->>>>>>> 8e33f14e8fc76537c8d879d840fd14f6294fbad7
             </div>
 
             <div className="flex items-center space-x-4">
