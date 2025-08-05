@@ -61,6 +61,49 @@ const Dashboard = () => {
     );
   }
 
+  // --- START: UNIFIED CONNECTION STATUS COMPONENT ---
+  // This component now handles the combined status of both hooks
+  const ConnectionStatus = () => {
+    const isPolling = devicesPolling || alertsPolling;
+
+    // Find the most recent update time between the two hooks
+    let lastUpdate = null;
+    if (devicesLastUpdate && alertsLastUpdate) {
+      lastUpdate = devicesLastUpdate > alertsLastUpdate ? devicesLastUpdate : alertsLastUpdate;
+    } else {
+      lastUpdate = devicesLastUpdate || alertsLastUpdate;
+    }
+
+    // Create a single refresh function to trigger both
+    const handleRefreshAll = () => {
+      refreshDevices();
+      refreshAlerts();
+    };
+
+    return (
+      <div className={`flex items-center text-xs px-3 py-1 rounded-full ${isPolling ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'} space-x-2`}>
+        <div className="flex items-center">
+          <span className="mr-1">
+            {isPolling ? 'Updating...' : 'Auto-refresh'}
+          </span>
+          {lastUpdate && (
+            <span className="text-xs text-gray-500">
+              {formatSystemTime ? formatSystemTime(lastUpdate) : lastUpdate.toLocaleTimeString()}
+            </span>
+          )}
+        </div>
+        <button
+          onClick={handleRefreshAll}
+          className="hover:opacity-80 transition-opacity"
+          title="Refresh All Data"
+        >
+          <RefreshCw className={`h-3 w-3 ${isPolling ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+    );
+  };
+  // --- END: UNIFIED CONNECTION STATUS COMPONENT ---
+
   // Filter alerts for user role
   const filteredAlerts = userRole === 'user' 
     ? alerts.filter(a => devices.some(device => device.device_id === a.device_id))
@@ -73,50 +116,6 @@ const Dashboard = () => {
     }
   }, [newAlert, notifyError]);
 
-  // Connection status component
-  const ConnectionStatus = ({ type }) => {
-    let status, reconnect, lastUpdate, isPolling;
-    
-    if (type === 'alert') {
-      status = alertsPolling ? 'polling' : 'idle';
-      reconnect = refreshAlerts;
-      lastUpdate = alertsLastUpdate;
-      isPolling = alertsPolling;
-    } else if (type === 'device') {
-      status = devicesPolling ? 'polling' : 'idle';
-      reconnect = refreshDevices;
-      lastUpdate = devicesLastUpdate;
-      isPolling = devicesPolling;
-    }
-
-    const statusMap = {
-      polling: { text: 'Updating...', color: 'bg-blue-100 text-blue-800' },
-      idle: { text: 'Auto-refresh', color: 'bg-green-100 text-green-800' }
-    };
-
-    return (
-      <div className={`flex items-center text-xs px-3 py-1 rounded-full ${statusMap[status]?.color || 'bg-gray-100'} space-x-2`}>
-        <div className="flex items-center">
-          <span className="mr-1">
-            {isPolling ? 'Updating...' : 'Auto-refresh'}
-          </span>
-          {lastUpdate && (
-            <span className="text-xs text-gray-500">
-              {formatSystemTime ? formatSystemTime(lastUpdate) : lastUpdate.toLocaleTimeString()}
-            </span>
-          )}
-        </div>
-        <button
-          onClick={reconnect}
-          className="hover:opacity-80 transition-opacity"
-          title={type === 'device' ? 'Refresh Devices' : 'Refresh Alerts'}
-        >
-          <RefreshCw className={`h-3 w-3 ${isPolling ? 'animate-spin' : ''}`} />
-        </button>
-      </div>
-    );
-  };
-
   // Helper function to check if alert is resolved
   const isAlertResolved = (alert) => {
     return alert.resolved_status === true || 
@@ -126,42 +125,17 @@ const Dashboard = () => {
            alert.resolved === true;
   };
 
-  // --- START: CORRECTED METRIC CALCULATION ---
   // Helper function to normalize and get device status
   const getDeviceStatus = (device) => {
-    // Check for 'device_status' or 'status' and convert to lowercase
     return (device.device_status || device.status || 'unknown').toLowerCase();
   };
   
   // Calculate dashboard metrics using the helper function
   const activeDevices = devices.filter(d => getDeviceStatus(d) === 'active').length;
-  // **FIX**: Count both 'disconnected' and 'inactive' as disconnected states
   const disconnectedDevices = devices.filter(d => ['disconnected', 'inactive'].includes(getDeviceStatus(d))).length;
   const faultyDevices = devices.filter(d => getDeviceStatus(d) === 'faulty').length;
   const urgentAlerts = alerts.filter(a => !isAlertResolved(a) && a.severity === 'High').length;
-  // --- END: CORRECTED METRIC CALCULATION ---
-
-
-  // Debug: Log device structure and counts
-  if (devices.length > 0) {
-    console.log('Sample device structure:', devices[0]);
-    console.log('Device counts:', {
-      total: devices.length,
-      active: activeDevices,
-      disconnected: disconnectedDevices,
-      faulty: faultyDevices
-    });
-  }
   
-  // Debug: Log alert structure and counts
-  if (alerts.length > 0) {
-    console.log('Sample alert structure:', alerts[0]);
-    console.log('Alert counts:', {
-      total: alerts.length,
-      urgent: urgentAlerts,
-      unresolved: alerts.filter(a => !isAlertResolved(a)).length
-    });
-  }
   const avgBatteryLevel = devices.length > 0
     ? Math.round(devices.reduce((sum, d) => sum + (d.telemetry?.battery || d.battery_level || 0), 0) / devices.length)
     : 0;
@@ -219,10 +193,9 @@ const Dashboard = () => {
 
     return (
       <div className="p-6 space-y-6">
-        {/* Connection Status */}
-        <div className="flex justify-end space-x-2">
-          <ConnectionStatus type="device" />
-          <ConnectionStatus type="alert" />
+        {/* Render the single, unified connection status */}
+        <div className="flex justify-end">
+          <ConnectionStatus />
         </div>
 
         {/* User Header */}
@@ -246,7 +219,6 @@ const Dashboard = () => {
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Device Information</h2>
               <DeviceCard device={userDevice} />
             </div>
-          {console.log('Full device object:', userDevice)}
             {/* Device Stats */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Device Status</h2>
@@ -266,7 +238,6 @@ const Dashboard = () => {
                     <span className="font-medium">{userDevice.telemetry?.battery || userDevice.battery_level || 0}%</span>
                   </div>
                 </div>
-                {console.log('Device status:', userDevice.device_status)}
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Device Status</span>
                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -355,10 +326,9 @@ const Dashboard = () => {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Connection Status */}
-      <div className="flex justify-end space-x-2">
-        <ConnectionStatus type="device" />
-        <ConnectionStatus type="alert" />
+      {/* Render the single, unified connection status */}
+      <div className="flex justify-end">
+        <ConnectionStatus />
       </div>
 
       {/* Header */}
@@ -474,21 +444,23 @@ const Dashboard = () => {
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">Device Status</h2>
-                <div className="flex space-x-2">
+                {/* --- START: CORRECTED LINKS --- */}
+                <div className="flex items-center space-x-2">
                   <Link
-                    to="/devicemap" /* Corrected path if needed */
+                    to="/devicemap"
                     className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
                   >
-                    
+                    View Map
                   </Link>
-                  {/* <span className="text-gray-300">|</span> */}
+                  <span className="text-gray-300">|</span>
                   <Link
                     to="/analytics"
                     className="text-sm text-blue-600 hover:text-blue-800 transition-colors"
                   >
-                    
+                    Analytics
                   </Link>
                 </div>
+                {/* --- END: CORRECTED LINKS --- */}
               </div>
             </div>
             <div className="p-6">

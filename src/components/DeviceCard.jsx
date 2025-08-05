@@ -113,7 +113,7 @@ const DeviceCard = ({ device, onClick }) => {
         <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-600">
           <div>Vibration: {device.telemetry?.vibration?.toFixed(1) || device.vibration_intensity?.toFixed(1) || device.vibration?.toFixed(1) || 'N/A'}</div>
           <div>Tilt: {device.telemetry?.tilt?.toFixed(1) || device.tilt?.toFixed(1) || device.tilt?.toFixed(1) || 'N/A'}°</div>
-          <div>Actuator: {device.telemetry?.actuator_status !== undefined ? (device.telemetry?.actuator_status ? 'ON' : 'OFF') : device.actuator_status !== undefined ? (device.actuator_status ? 'ON' : 'OFF') : 'N/A'}</div>
+          {/* <div>Actuator: {device.telemetry?.actuator_status !== undefined ? (device.telemetry?.actuator_status ? 'ON' : 'OFF') : device.actuator_status !== undefined ? (device.actuator_status ? 'ON' : 'OFF') : 'N/A'}</div> */}
         </div>
       </div>
     </div>

@@ -315,7 +315,7 @@ const DeviceMap = () => {
                   <h4 className="font-medium text-gray-900 mb-2">Status</h4>
                   <div className="space-y-2 text-sm text-gray-600">
                     <div>Battery: {selectedDevice.telemetry?.battery || selectedDevice.battery_level || 'N/A'}%</div>
-                    <div>Actuator: {selectedDevice.telemetry?.actuator_status !== undefined ? (selectedDevice.telemetry?.actuator_status ? 'Active' : 'Inactive') : selectedDevice.actuator_status !== undefined ? (selectedDevice.actuator_status ? 'Active' : 'Inactive') : 'N/A'}</div>
+                    {/* <div>Actuator: {selectedDevice.telemetry?.actuator_status !== undefined ? (selectedDevice.telemetry?.actuator_status ? 'Active' : 'Inactive') : selectedDevice.actuator_status !== undefined ? (selectedDevice.actuator_status ? 'Active' : 'Inactive') : 'N/A'}</div> */}
                     <div>SOS: {selectedDevice.SOS_triggered || selectedDevice.telemetry?.sos_flag === 1 ? 'TRIGGERED' : 'Normal'}</div>
                     <div>Accident: {selectedDevice.accident_reported ? 'DETECTED' : 'None'}</div>
                   </div>
