@@ -38,7 +38,7 @@ const Layout = ({ children }) => {
         { name: 'Device Map', href: '/devices', icon: Map },
         { name: 'Alerts', href: '/alerts', icon: AlertTriangle },
         { name: 'SOS Trigger', href: '/sos-trigger', icon: Zap },
-        { name: 'Admin Lock', href: '/admin-lock', icon: Lock },
+        { name: 'Admin Lock', href: '/adminlock', icon: Lock },
         { name: 'Admin', href: '/admin', icon: Settings }
       ];
     } else if (userRole === 'operator') {
@@ -145,7 +145,7 @@ const Layout = ({ children }) => {
                 <Menu className="h-5 w-5" />
               </button>
 
-              <div className="hidden md:flex items-center ml-4">
+              {/* <div className="hidden md:flex items-center ml-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
@@ -154,7 +154,7 @@ const Layout = ({ children }) => {
                     className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
                   />
                 </div>
-              </div>
+              </div> */}
             </div>
 
             <div className="flex items-center space-x-4">
@@ -163,9 +163,9 @@ const Layout = ({ children }) => {
                 <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full"></span>
               </button>
 
-              <div className="h-6 w-px bg-gray-300"></div>
+              {/* <div className="h-6 w-px bg-gray-300"></div> */}
 
-              <div className="flex items-center space-x-2">
+              {/* <div className="flex items-center space-x-2">
                 {isConnected ? (
                   <>
                     <Wifi className="h-4 w-4 text-green-500" />
@@ -177,7 +177,7 @@ const Layout = ({ children }) => {
                     <span className="text-sm text-gray-600">Disconnected</span>
                   </>
                 )}
-              </div>
+              </div> */}
 
               <div className="h-6 w-px bg-gray-300"></div>
 

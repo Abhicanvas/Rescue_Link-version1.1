@@ -126,7 +126,7 @@ const Login = ({ onLoginSuccess }) => {
             </button>
           </div>
 
-          <div className="text-center">
+          {/* <div className="text-center">
             <div className="text-sm text-gray-600">
               Demo credentials:
             </div>
@@ -135,7 +135,7 @@ const Login = ({ onLoginSuccess }) => {
               <div>Operator: operator@rescuelink.com / operator123</div>
               <div>User: user@rescuelink.com / user123</div>
             </div>
-          </div>
+          </div> */}
         </form>
       </div>
     </div>

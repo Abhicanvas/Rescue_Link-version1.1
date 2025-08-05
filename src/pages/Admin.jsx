@@ -398,8 +398,8 @@ const Admin = () => {
   const tabs = [
     { id: "devices", label: "Device Management", icon: Settings },
     { id: "users", label: "User Management", icon: Users },
-    { id: "settings", label: "System Settings", icon: Settings },
-    { id: "data", label: "Data Management", icon: Database },
+    // { id: "settings", label: "System Settings", icon: Settings },
+    // { id: "data", label: "Data Management", icon: Database },
   ];
 
   // Test API connection on component mount
@@ -1208,150 +1208,150 @@ const Admin = () => {
   );
 
   // System Settings component
-  const SystemSettings = () => (
-    <div className="space-y-6">
-      {error && <ErrorMessage message={error} onClose={() => setError(null)} />}
+  // const SystemSettings = () => (
+  //   <div className="space-y-6">
+  //     {error && <ErrorMessage message={error} onClose={() => setError(null)} />}
       
-      <h2 className="text-xl font-semibold text-gray-900">System Settings</h2>
+  //     <h2 className="text-xl font-semibold text-gray-900">System Settings</h2>
       
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Alert Configuration</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                SOS Alert Threshold (seconds)
-              </label>
-              <input
-                type="number"
-                value={settings.sosAlertThreshold}
-                onChange={(e) => setSettingsState({...settings, sosAlertThreshold: parseInt(e.target.value)})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Low Battery Threshold (%)
-              </label>
-              <input
-                type="number"
-                value={settings.lowBatteryThreshold}
-                onChange={(e) => setSettingsState({...settings, lowBatteryThreshold: parseInt(e.target.value)})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Vibration Sensitivity
-              </label>
-              <select 
-                value={settings.vibrationSensitivity}
-                onChange={(e) => setSettingsState({...settings, vibrationSensitivity: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option>Low</option>
-                <option>Medium</option>
-                <option>High</option>
-              </select>
-            </div>
-          </div>
-        </div>
+  //     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  //       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+  //         <h3 className="text-lg font-medium text-gray-900 mb-4">Alert Configuration</h3>
+  //         <div className="space-y-4">
+  //           <div>
+  //             <label className="block text-sm font-medium text-gray-700 mb-2">
+  //               SOS Alert Threshold (seconds)
+  //             </label>
+  //             <input
+  //               type="number"
+  //               value={settings.sosAlertThreshold}
+  //               onChange={(e) => setSettingsState({...settings, sosAlertThreshold: parseInt(e.target.value)})}
+  //               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+  //             />
+  //           </div>
+  //           <div>
+  //             <label className="block text-sm font-medium text-gray-700 mb-2">
+  //               Low Battery Threshold (%)
+  //             </label>
+  //             <input
+  //               type="number"
+  //               value={settings.lowBatteryThreshold}
+  //               onChange={(e) => setSettingsState({...settings, lowBatteryThreshold: parseInt(e.target.value)})}
+  //               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+  //             />
+  //           </div>
+  //           <div>
+  //             <label className="block text-sm font-medium text-gray-700 mb-2">
+  //               Vibration Sensitivity
+  //             </label>
+  //             <select 
+  //               value={settings.vibrationSensitivity}
+  //               onChange={(e) => setSettingsState({...settings, vibrationSensitivity: e.target.value})}
+  //               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+  //             >
+  //               <option>Low</option>
+  //               <option>Medium</option>
+  //               <option>High</option>
+  //             </select>
+  //           </div>
+  //         </div>
+  //       </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Network Configuration</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                LoRaWAN Gateway IP
-              </label>
-              <input
-                type="text"
-                value={settings.lorawanGatewayIP}
-                onChange={(e) => setSettingsState({...settings, lorawanGatewayIP: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Data Update Interval (seconds)
-              </label>
-              <input
-                type="number"
-                value={settings.dataUpdateInterval}
-                onChange={(e) => setSettingsState({...settings, dataUpdateInterval: parseInt(e.target.value)})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Backup Server URL
-              </label>
-              <input
-                type="url"
-                value={settings.backupServerURL}
-                onChange={(e) => setSettingsState({...settings, backupServerURL: e.target.value})}
-                placeholder="https://backup.rescuelink.com"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
+  //       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+  //         <h3 className="text-lg font-medium text-gray-900 mb-4">Network Configuration</h3>
+  //         <div className="space-y-4">
+  //           <div>
+  //             <label className="block text-sm font-medium text-gray-700 mb-2">
+  //               LoRaWAN Gateway IP
+  //             </label>
+  //             <input
+  //               type="text"
+  //               value={settings.lorawanGatewayIP}
+  //               onChange={(e) => setSettingsState({...settings, lorawanGatewayIP: e.target.value})}
+  //               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+  //             />
+  //           </div>
+  //           <div>
+  //             <label className="block text-sm font-medium text-gray-700 mb-2">
+  //               Data Update Interval (seconds)
+  //             </label>
+  //             <input
+  //               type="number"
+  //               value={settings.dataUpdateInterval}
+  //               onChange={(e) => setSettingsState({...settings, dataUpdateInterval: parseInt(e.target.value)})}
+  //               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+  //             />
+  //           </div>
+  //           <div>
+  //             <label className="block text-sm font-medium text-gray-700 mb-2">
+  //               Backup Server URL
+  //             </label>
+  //             <input
+  //               type="url"
+  //               value={settings.backupServerURL}
+  //               onChange={(e) => setSettingsState({...settings, backupServerURL: e.target.value})}
+  //               placeholder="https://backup.rescuelink.com"
+  //               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+  //             />
+  //           </div>
+  //         </div>
+  //       </div>
+  //     </div>
 
-      <div className="flex justify-end">
-        <button 
-          onClick={handleSaveSettings}
-          disabled={loading}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-        >
-          {loading ? <Loader className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-          Save Settings
-        </button>
-      </div>
-    </div>
-  );
+  //     <div className="flex justify-end">
+  //       <button 
+  //         onClick={handleSaveSettings}
+  //         disabled={loading}
+  //         className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+  //       >
+  //         {loading ? <Loader className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+  //         Save Settings
+  //       </button>
+  //     </div>
+  //   </div>
+  // );
 
-  // Data Management component
-  const DataManagement = () => (
-    <div className="space-y-6">
-      {error && <ErrorMessage message={error} onClose={() => setError(null)} />}
+  // // Data Management component
+  // const DataManagement = () => (
+  //   <div className="space-y-6">
+  //     {error && <ErrorMessage message={error} onClose={() => setError(null)} />}
       
-      <h2 className="text-xl font-semibold text-gray-900">Data Management</h2>
+  //     <h2 className="text-xl font-semibold text-gray-900">Data Management</h2>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Export Data</h3>
-          <p className="text-gray-600 mb-4">Download historical data for analysis and reporting.</p>
-          <div className="space-y-3">
-            <button 
-              onClick={() => handleExport('devices', 'csv')}
-              disabled={loading}
-              className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export Device Data (CSV)
-            </button>
-            <button 
-              onClick={() => handleExport('alerts', 'csv')}
-              disabled={loading}
-              className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export Alert Data (CSV)
-            </button>
-            <button 
-              onClick={() => handleExport('reports', 'pdf')}
-              disabled={loading}
-              className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export Reports (PDF)
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  //     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+  //       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+  //         <h3 className="text-lg font-medium text-gray-900 mb-4">Export Data</h3>
+  //         <p className="text-gray-600 mb-4">Download historical data for analysis and reporting.</p>
+  //         <div className="space-y-3">
+  //           <button 
+  //             onClick={() => handleExport('devices', 'csv')}
+  //             disabled={loading}
+  //             className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+  //           >
+  //             <Download className="h-4 w-4 mr-2" />
+  //             Export Device Data (CSV)
+  //           </button>
+  //           <button 
+  //             onClick={() => handleExport('alerts', 'csv')}
+  //             disabled={loading}
+  //             className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+  //           >
+  //             <Download className="h-4 w-4 mr-2" />
+  //             Export Alert Data (CSV)
+  //           </button>
+  //           <button 
+  //             onClick={() => handleExport('reports', 'pdf')}
+  //             disabled={loading}
+  //             className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+  //           >
+  //             <Download className="h-4 w-4 mr-2" />
+  //             Export Reports (PDF)
+  //           </button>
+  //         </div>
+  //       </div>
+  //     </div>
+  //   </div>
+  // );
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -1379,8 +1379,8 @@ const Admin = () => {
       <div className="bg-white rounded-b-lg shadow p-6">
         {activeTab === "devices" && <DeviceManagement />}
         {activeTab === "users" && <UserManagement />}
-        {activeTab === "settings" && <SystemSettings />}
-        {activeTab === "data" && <DataManagement />}
+        {/* {activeTab === "settings" && <SystemSettings />}
+        {activeTab === "data" && <DataManagement />} */}
       </div>
     </div>
   );

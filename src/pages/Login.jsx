@@ -36,7 +36,7 @@ const Login = () => {
       localStorage.setItem('userRole', user.role);
       navigate('/dashboard');
     } else {
-      setError('Invalid email or password. Try admin@rescuelink.com / admin123');
+      setError('Invalid email or password');
     }
 
     setLoading(false);
@@ -136,26 +136,15 @@ const Login = () => {
             </button>
           </form>
 
-          <div className="mt-6 text-center">
+          {/* <div className="mt-6 text-center">
             <p className="text-gray-600">
               Don't have an account?{' '}
               <Link to="/register" className="text-blue-600 hover:text-blue-800 font-medium transition-colors">
                 Register now
               </Link>
             </p>
-          </div>
-
-          {/* Demo Credentials */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-            <h4 className="text-sm font-medium text-gray-700 mb-2">Demo Credentials:</h4>
-            <div className="text-xs text-gray-600 space-y-1">
-              <div>Admin: admin@rescuelink.com / admin123</div>
-              <div>Operator: operator@rescuelink.com / operator123</div>
-              <div>User: user@rescuelink.com / user123</div>
-            </div>
-          </div>
+          </div>           */}
         </div>
-
         {/* Footer */}
         <div className="mt-8 text-center">
           <div className="flex items-center justify-center text-sm text-gray-500">
