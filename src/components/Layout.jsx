@@ -31,6 +31,14 @@ const Layout = ({ children }) => {
   const { success, error } = useNotification();
   const userRole = user?.role || 'user';
 
+  // Logo marquee data - replace these with your actual logos later
+  const marqueeLogos = [
+    { id: 1, src: '/New_Signal_Logo-removebg.png', alt: 'Partner Logo 1' },
+    { id: 2, src: '/ieee-humanitarian-technologies-ogimage-logo-removebg-preview.png', alt: 'Partner Logo 2' },
+    { id: 3, src: '/T4G.png', alt: 'Partner Logo 3' },
+    { id: 4, src: '/ieee-1.svg', alt: 'Partner Logo 4' },
+  ];
+
   // Close notification dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -160,8 +168,24 @@ const Layout = ({ children }) => {
               >
                 <Menu className="h-5 w-5" />
               </button>
-
             </div>
+
+            {/* Logo Marquee - Now positioned between menu and user controls */}
+            {/* In the marquee content section */}
+<div className="hidden md:flex items-center flex-1 overflow-hidden mx-4 h-full">
+  <div className="marquee-container w-full h-full flex items-center">
+    <div className="marquee-content flex items-center h-full">
+      {[...marqueeLogos, ...marqueeLogos].map((logo, index) => (
+        <img
+          key={`${logo.id}-${index}`}
+          src={logo.src}
+          alt={logo.alt}
+          className="h-8 w-auto mx-6 object-contain opacity-70 hover:opacity-100 transition-all hover:scale-105"
+        />
+      ))}
+    </div>
+  </div>
+</div>
 
             <div className="flex items-center space-x-4">
               <div className="relative" ref={notificationRef}>
@@ -197,22 +221,6 @@ const Layout = ({ children }) => {
                 )}
               </div>
 
-              {/* <div className="h-6 w-px bg-gray-300"></div> */}
-
-              {/* <div className="flex items-center space-x-2">
-                {isConnected ? (
-                  <>
-                    <Wifi className="h-4 w-4 text-green-500" />
-                    <span className="text-sm text-gray-600">Connected</span>
-                  </>
-                ) : (
-                  <>
-                    <WifiOff className="h-4 w-4 text-red-500" />
-                    <span className="text-sm text-gray-600">Disconnected</span>
-                  </>
-                )}
-              </div> */}
-
               <div className="h-6 w-px bg-gray-300"></div>
 
               <button
@@ -238,6 +246,42 @@ const Layout = ({ children }) => {
           {children}
         </main>
       </div>
+
+      {/* Add custom animation for marquee */}
+      <style jsx global>{`
+  .marquee-container {
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+  }
+  
+  .marquee-content {
+    display: flex;
+    align-items: center;
+    animation: scroll-left 20s linear infinite;
+  }
+  
+  .marquee-content img {
+    height: 3.5rem; /* Equivalent to h-8 */
+    margin: 0 1.5rem; /* Equivalent to mx-6 */
+    opacity: 0.7;
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  
+  .marquee-content img:hover {
+    opacity: 1;
+    transform: scale(1.1); /* 10% zoom on hover */
+  }
+  
+  @keyframes scroll-left {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+`}</style>
     </div>
   );
 };
