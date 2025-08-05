@@ -15,6 +15,7 @@ import Alerts from './pages/Alerts';
 import Admin from './pages/Admin';
 import SOSTrigger from './pages/SOSTrigger';
 import AdminLock from './pages/Adminlock';
+import ResetPassword from './pages/ResetPassword';
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
 
@@ -80,6 +81,14 @@ function AppContent() {
           element={
             <ProtectedRoute requiredRole="admin">
               <SOSTrigger />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/ResetPassword" 
+          element={
+            <ProtectedRoute requiredRole="user">
+              <ResetPassword />
             </ProtectedRoute>
           } 
         />

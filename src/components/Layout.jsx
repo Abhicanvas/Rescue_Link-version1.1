@@ -55,7 +55,7 @@ const Layout = ({ children }) => {
   }, []);
 
   const getNavigation = () => {
-    const baseNav = [{ name: 'Dashboard', href: '/', icon: Home }];
+    const baseNav = [{ name: 'Dashboard', href: '/', icon: Home },];
 
     if (userRole === 'admin') {
       return [
@@ -64,7 +64,8 @@ const Layout = ({ children }) => {
         { name: 'Alerts', href: '/alerts', icon: AlertTriangle },
         { name: 'SOS Trigger', href: '/sos-trigger', icon: Zap },
         { name: 'Admin Lock', href: '/adminlock', icon: Lock },
-        { name: 'Admin', href: '/admin', icon: Settings }
+        { name: 'Admin', href: '/admin', icon: Settings },
+        { name: 'ResetPassword', href: '/ResetPassword', icon: Shield }
       ];
     } else if (userRole === 'operator') {
       return [
@@ -72,10 +73,14 @@ const Layout = ({ children }) => {
         { name: 'Device Map', href: '/devices', icon: Map },
         { name: 'Analytics', href: '/analytics', icon: BarChart3 },
         { name: 'Alerts', href: '/alerts', icon: AlertTriangle },
-        { name: 'SOS Trigger', href: '/sos-trigger', icon: Zap }
+        { name: 'SOS Trigger', href: '/sos-trigger', icon: Zap },
+        { name: 'ResetPassword', href: '/ResetPassword', icon: Shield }
       ];
     } else {
-      return baseNav;
+      return [
+        ...baseNav,
+        { name: 'ResetPassword', href: '/ResetPassword', icon: Map },
+];
     }
   };
 

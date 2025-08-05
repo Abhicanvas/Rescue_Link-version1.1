@@ -224,20 +224,20 @@ const ResetPassword = () => {
           </form>
 
           {/* Demo Info */}
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+          {/* <div className="mt-6 p-4 bg-blue-50 rounded-lg">
             <h4 className="text-sm font-medium text-blue-700 mb-2">Demo Information:</h4>
             <p className="text-xs text-blue-600">
               Use "tempPassword123" as the current password for testing purposes.
             </p>
-          </div>
+          </div> */}
         </div>
 
         {/* Footer */}
-        <div className="mt-8 text-center">
+        {/* <div className="mt-8 text-center">
           <p className="text-sm text-gray-500">
             Remember your new password for future logins
           </p>
-        </div>
+        </div> */}
       </div>
     </div>
   );
