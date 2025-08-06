@@ -312,9 +312,9 @@ const DeviceMap = () => {
                   <h4 className="font-medium text-gray-900 mb-2">Sensor Data</h4>
                   <div className="space-y-2 text-sm text-gray-600">
                     <div>Vibration: {selectedDevice.telemetry?.vibration?.toFixed(2) || selectedDevice.vibration_intensity?.toFixed(2) || 'N/A'}</div>
-                    <div>Tilt X: {selectedDevice.telemetry?.tilt_x?.toFixed(2) || selectedDevice.tilt_x?.toFixed(2) || 'N/A'}°</div>
+                    {/* <div>Tilt X: {selectedDevice.telemetry?.tilt_x?.toFixed(2) || selectedDevice.tilt_x?.toFixed(2) || 'N/A'}°</div>
                     <div>Tilt Y: {selectedDevice.telemetry?.tilt_y?.toFixed(2) || selectedDevice.tilt_y?.toFixed(2) || 'N/A'}°</div>
-                    <div>Tilt Z: {selectedDevice.telemetry?.tilt_z?.toFixed(2) || selectedDevice.tilt_z?.toFixed(2) || 'N/A'}°</div>
+                    <div>Tilt Z: {selectedDevice.telemetry?.tilt_z?.toFixed(2) || selectedDevice.tilt_z?.toFixed(2) || 'N/A'}°</div> */}
                   </div>
                 </div>
                 
