@@ -27,7 +27,6 @@ const DeviceMap = () => {
   // Use device polling hook for automatic device updates
   const { devices, loading } = useDevicePolling(60000, true); // Poll every 1 minute
 
-  // --- START: CORRECTED FILTERING LOGIC ---
   useEffect(() => {
     // Helper to reliably get device status, handling different fields and cases
     const getDeviceStatus = (device) => (device.device_status || device.status || 'unknown').toLowerCase();
@@ -57,11 +56,9 @@ const DeviceMap = () => {
 
     setFilteredDevices(filtered);
   }, [devices, filterStatus, searchTerm]);
-  // --- END: CORRECTED FILTERING LOGIC ---
 
   // Create custom markers based on device status
   const createCustomIcon = (device) => {
-    // Use the same robust helper function here
     const getDeviceStatus = (device) => (device.device_status || device.status || 'unknown').toLowerCase();
     
     const getColor = (status) => {
@@ -120,7 +117,6 @@ const DeviceMap = () => {
     );
   }
 
-  // --- START: CORRECTED COUNT CALCULATION ---
   // Calculate counts and center position using robust logic
   const getDeviceStatus = (device) => (device.device_status || device.status || 'unknown').toLowerCase();
   const activeCount = devices.filter(d => getDeviceStatus(d) === 'active').length;
@@ -134,7 +130,6 @@ const DeviceMap = () => {
         devicesWithLocation.reduce((sum, d) => sum + d.location.long, 0) / devicesWithLocation.length
       ]
     : [20.5937, 78.9629]; // Default to center of India
-  // --- END: CORRECTED COUNT CALCULATION ---
 
   return (
     <div className="p-6 space-y-6">
@@ -179,7 +174,7 @@ const DeviceMap = () => {
           <div style={{ height: '400px', width: '100%' }}>
             <MapContainer
               center={centerPosition}
-              zoom={5} // Adjusted zoom for a country view
+              zoom={5}
               style={{ height: '100%', width: '100%' }}
               zoomControl={true}
             >
@@ -248,7 +243,6 @@ const DeviceMap = () => {
             <h3 className="text-lg font-semibold text-gray-900">
               Devices ({filteredDevices.length})
             </h3>
-            {/* Using the corrected counts */}
             <div className="text-sm text-gray-500">
               {activeCount} active,{' '}
               {disconnectedCount} disconnected,{' '}
@@ -300,7 +294,20 @@ const DeviceMap = () => {
               
               <DeviceCard device={selectedDevice} isDetailedView={true} />
               
-              <div className="mt-6 grid grid-cols-2 gap-4">
+              {/* --- START: NEW USER INFORMATION SECTION --- */}
+              {/* This section displays user details. It assumes your 'device' object has */}
+              {/* fields like 'user_name', 'user_contact', and 'emergency_contact'. */}
+              <div className="mt-6 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <h4 className="font-medium text-gray-900 mb-2">👤 User Information</h4>
+                <div className="space-y-2 text-sm text-gray-700">
+                  <div><strong>Name:</strong> {selectedDevice.user_name || 'N/A'}</div>
+                  <div><strong>Contact:</strong> {selectedDevice.phone_number || 'N/A'}</div>
+                  <div><strong>Emergency Contact:</strong> {selectedDevice.emergency_contact_number || 'N/A'}</div>
+                </div>
+              </div>
+              {/* --- END: NEW USER INFORMATION SECTION --- */}
+
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h4 className="font-medium text-gray-900 mb-2">Sensor Data</h4>
                   <div className="space-y-2 text-sm text-gray-600">
@@ -315,7 +322,6 @@ const DeviceMap = () => {
                   <h4 className="font-medium text-gray-900 mb-2">Status</h4>
                   <div className="space-y-2 text-sm text-gray-600">
                     <div>Battery: {selectedDevice.telemetry?.battery || selectedDevice.battery_level || 'N/A'}%</div>
-                    {/* <div>Actuator: {selectedDevice.telemetry?.actuator_status !== undefined ? (selectedDevice.telemetry?.actuator_status ? 'Active' : 'Inactive') : selectedDevice.actuator_status !== undefined ? (selectedDevice.actuator_status ? 'Active' : 'Inactive') : 'N/A'}</div> */}
                     <div>SOS: {selectedDevice.SOS_triggered || selectedDevice.telemetry?.sos_flag === 1 ? 'TRIGGERED' : 'Normal'}</div>
                     <div>Accident: {selectedDevice.accident_reported ? 'DETECTED' : 'None'}</div>
                   </div>

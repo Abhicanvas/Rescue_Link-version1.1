@@ -31,6 +31,10 @@ class ApiService {
 
   // Helper method to handle API responses
   async handleResponse(response) {
+    // For responses that might not have a JSON body (e.g., 204 No Content)
+    if (response.status === 204) {
+      return null;
+    }
     const data = await response.json();
     
     if (!response.ok) {
@@ -63,13 +67,16 @@ class ApiService {
       if (error instanceof ApiError) {
         throw error;
       }
-      throw new ApiError('Network error', 0, error);
+      // Handle cases where response.json() fails or other network errors
+      if (error instanceof SyntaxError) {
+         throw new ApiError('Received an invalid response from the server.', 500, error);
+      }
+      throw new ApiError('Network error. Please check your connection.', 0, error);
     }
   }
 
   // Authentication methods
   async login(email, password) {
-    // Use the exact format from your API documentation
     const response = await fetch(`${this.baseURL}/api/v1/auth/login`, {
       method: 'POST',
       headers: {
@@ -90,7 +97,6 @@ class ApiService {
       this.token = data.access_token;
       localStorage.setItem('authToken', data.access_token);
       
-      // Try to get user profile after successful login
       try {
         const profile = await this.getProfile();
         localStorage.setItem('userRole', profile.role);
@@ -100,7 +106,6 @@ class ApiService {
         return { token: data.access_token, user: profile };
       } catch (profileError) {
         console.warn('Failed to get profile due to CORS, using email-based role detection:', profileError);
-        // Extract role from email for demo purposes
         let role = 'user';
         if (email.includes('admin')) {
           role = 'admin';
@@ -153,6 +158,18 @@ class ApiService {
 
   async getProfile() {
     return await this.request('/api/v1/auth/profile');
+  }
+
+  // >>> NEWLY ADDED METHOD <<<
+  async resetPassword(currentPassword, newPassword) {
+    return await this.request('/api/v1/auth/reset-password', {
+      method: 'PUT',
+      body: JSON.stringify({
+        current_password: currentPassword, // Use snake_case to match common FastAPI conventions
+        new_password: newPassword,
+        confirm_new_password: newPassword,
+      }),
+    });
   }
 
   async signup(userData) {
