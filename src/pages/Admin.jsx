@@ -173,22 +173,46 @@ const DeviceForm = React.memo(({ initialData, users, onSubmit, submitText, onCan
   );
 });
 
-// UserForm with fixed password generation and API-consistent field names
+// UserForm with fixed password generation and API-consistent field names - FIXED ROLE ISSUE
 const UserForm = React.memo(({ initialData, onSubmit, generatePassword, submitText, onCancel, loading }) => {
-  const [userData, setUserData] = useState({
-    ...initialData,
-    full_name: `${initialData.first_name || ''} ${initialData.last_name || ''}`.trim(),
+  const [userData, setUserData] = useState(() => {
+    // Initialize with proper role handling
+    const role = initialData.role ? initialData.role.toLowerCase() : 'user';
+    console.log('UserForm - Initial role:', initialData.role, 'Normalized:', role);
+    
+    return {
+      ...initialData,
+      role: role,
+      full_name: `${initialData.first_name || ''} ${initialData.last_name || ''}`.trim(),
+    };
   });
+
+  // Add useEffect to sync with initialData changes (for edit mode)
+  useEffect(() => {
+    const role = initialData.role ? initialData.role.toLowerCase() : 'user';
+    console.log('UserForm - useEffect updating role:', initialData.role, 'to:', role);
+    
+    setUserData(prev => ({
+      ...initialData,
+      role: role,
+      full_name: `${initialData.first_name || ''} ${initialData.last_name || ''}`.trim(),
+    }));
+  }, [initialData]);
 
   const handleInputChange = useCallback(
     (e) => {
       const { name, value } = e.target;
+      console.log('UserForm - Input change:', name, value);
+      
       setUserData((prev) => {
         const updatedData = { ...prev, [name]: value };
+        
         // Update full_name whenever first_name or last_name changes
         if (name === 'first_name' || name === 'last_name') {
           updatedData.full_name = `${updatedData.first_name || ''} ${updatedData.last_name || ''}`.trim();
         }
+        
+        console.log('UserForm - Updated userData:', updatedData);
         return updatedData;
       });
     },
@@ -201,8 +225,12 @@ const UserForm = React.memo(({ initialData, onSubmit, generatePassword, submitTe
   }, [generatePassword]);
 
   const handleSubmit = useCallback(() => {
+    console.log('UserForm - Submitting userData:', userData);
     onSubmit(userData);
   }, [onSubmit, userData]);
+
+  console.log('UserForm - Render userData:', userData);
+  console.log('UserForm - Current role value:', userData.role);
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
@@ -286,10 +314,11 @@ const UserForm = React.memo(({ initialData, onSubmit, generatePassword, submitTe
           />
         </div>
 
+        {/* FIXED ROLE SELECT */}
         <div>
           <label className="block mb-1 font-medium">Role</label>
           <select
-            key="role"
+            key={`role-${userData.id || 'new'}`} // Add unique key to force re-render
             name="role"
             value={userData.role || 'user'}
             onChange={handleInputChange}
@@ -300,6 +329,8 @@ const UserForm = React.memo(({ initialData, onSubmit, generatePassword, submitTe
             <option value="operator">Operator</option>
             <option value="admin">Admin</option>
           </select>
+          {/* Debug info - remove in production */}
+          <small className="text-gray-500">Current role: {userData.role}</small>
         </div>
 
         {submitText === "Add User" && (
@@ -487,15 +518,26 @@ const Admin = () => {
 
   // Helper function to extract data from API response
   const extractResponseData = (response, dataKey = null) => {
-    console.log('API Response:', response);
-    if (dataKey && response.data[dataKey]) {
+    console.log('extractResponseData - Input response:', response);
+    if (dataKey && response.data && response.data[dataKey]) {
+      console.log('extractResponseData - Extracted with dataKey:', response.data[dataKey]);
       return response.data[dataKey];
     }
     
-    if (response.data) return response.data;
-    if (response.users) return response.users;
-    if (response.results) return response.results;
+    if (response.data) {
+      console.log('extractResponseData - Extracted data:', response.data);
+      return response.data;
+    }
+    if (response.users) {
+      console.log('extractResponseData - Extracted users:', response.users);
+      return response.users;
+    }
+    if (response.results) {
+      console.log('extractResponseData - Extracted results:', response.results);
+      return response.results;
+    }
     
+    console.log('extractResponseData - Fallback to response:', response);
     return response;
   };
 
@@ -506,6 +548,7 @@ const Admin = () => {
       setError(null);
       const response = await deviceAPI.getAll();
       const deviceData = extractResponseData(response);
+      console.log('fetchDevices - Device data:', deviceData);
       setDevices(Array.isArray(deviceData) ? deviceData : []);
     } catch (err) {
       let errorMessage = 'Failed to fetch devices';
@@ -536,30 +579,30 @@ const Admin = () => {
       
       try {
         response = await userAPI.getAll();
-        console.log('Users API Response (primary):', response);
-        console.log('Users API Response Data (primary):', response.data);
+        console.log('fetchUsers - Users API Response (primary):', response);
+        console.log('fetchUsers - Users API Response Data (primary):', response.data);
         userData = extractResponseData(response);
       } catch (primaryError) {
-        console.warn('Primary users API failed, trying alternative endpoints:', primaryError);
+        console.warn('fetchUsers - Primary users API failed, trying alternative endpoints:', primaryError);
         
         // Try alternative endpoints
         try {
           // Try direct API call to /api/v1/users (without auth prefix)
           const altResponse = await api.request('/api/v1/users');
-          console.log('Alternative users API response:', altResponse);
+          console.log('fetchUsers - Alternative users API response:', altResponse);
           userData = Array.isArray(altResponse) ? altResponse : altResponse.data || altResponse.users || [];
         } catch (altError) {
-          console.warn('Alternative users API also failed:', altError);
+          console.warn('fetchUsers - Alternative users API also failed:', altError);
           throw primaryError; // Re-throw the original error
         }
       }
       
-      console.log('Final extracted User Data:', userData);
-      console.log('Users array length:', Array.isArray(userData) ? userData.length : 'Not an array');
+      console.log('fetchUsers - Final extracted User Data:', userData);
+      console.log('fetchUsers - Users array length:', Array.isArray(userData) ? userData.length : 'Not an array');
       
       if (Array.isArray(userData)) {
         userData.forEach((user, index) => {
-          console.log(`User ${index}:`, {
+          console.log(`fetchUsers - User ${index}:`, {
             id: user.id,
             full_name: user.full_name,
             name: user.name,
@@ -596,6 +639,7 @@ const Admin = () => {
       setError(null);
       const response = await settingsAPI.get();
       const settingsData = extractResponseData(response);
+      console.log('fetchSettings - Settings data:', settingsData);
       setSettingsState(settingsData);
     } catch (err) {
       let errorMessage = 'Failed to fetch settings';
@@ -644,9 +688,11 @@ const Admin = () => {
         longitude: lon,
         status: deviceData.status || 'Active',
       };
+      console.log('handleAddDevice - Sending payload:', payload);
       const response = await deviceAPI.create(payload);
-      console.log('Device API Response:', response.data);
+      console.log('handleAddDevice - Device API Response:', response.data);
       const newDevice = extractResponseData(response);
+      console.log('handleAddDevice - Extracted new device:', newDevice);
       setDevices(prev => [...prev, newDevice]);
       setShowAddDevice(false);
       alert('Device added successfully!');
@@ -698,8 +744,11 @@ const Admin = () => {
         longitude: lon,
         status: deviceData.status || 'Active',
       };
+      console.log('handleUpdateDevice - Sending payload:', payload);
       const response = await deviceAPI.updateDevice(editingDevice.device_id, payload);
+      console.log('handleUpdateDevice - Device API Response:', response.data);
       const updatedDevice = extractResponseData(response);
+      console.log('handleUpdateDevice - Extracted updated device:', updatedDevice);
       
       setDevices(prev => prev.map(dev => dev.device_id === editingDevice.device_id ? updatedDevice : dev));
       
@@ -728,6 +777,7 @@ const Admin = () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('handleDeleteDevice - Deleting device:', device_id);
       await deviceAPI.delete(device_id);
       setDevices(prev => prev.filter(dev => dev.device_id !== device_id));
       alert('Device deleted successfully!');
@@ -777,20 +827,34 @@ const Admin = () => {
         full_name: `${userData.first_name} ${userData.last_name}`.trim(),
         email: userData.email,
         phone_number: userData.phone_number,
-        role: userData.role,
+        role: userData.role.toLowerCase(),
         password: userData.password,
         emergency_contact_name: userData.emergency_contact_name,
         emergency_contact_number: userData.emergency_contact_number,
       };
 
-      console.log('Sending user creation request:', userPayload);
+      console.log('handleAddUser - Sending user creation request:', userPayload);
       const response = await userAPI.create(userPayload);
-      console.log('User API Response:', response.data);
+      console.log('handleAddUser - User API Response:', response);
       const newUser = extractResponseData(response);
-      if (!newUser.full_name) {
-        newUser.full_name = `${newUser.first_name} ${newUser.last_name}`.trim();
-      }
-      setUsers(prev => [...prev, newUser]);
+      console.log('handleAddUser - Extracted new user:', newUser);
+      
+      // Ensure newUser has all required fields
+      const normalizedUser = {
+        id: newUser.id || Date.now().toString(), // Fallback ID if not provided
+        full_name: newUser.full_name || `${newUser.first_name || userData.first_name} ${newUser.last_name || userData.last_name}`.trim(),
+        first_name: newUser.first_name || userData.first_name,
+        last_name: newUser.last_name || userData.last_name,
+        email: newUser.email || userData.email,
+        phone_number: newUser.phone_number || userData.phone_number,
+        role: newUser.role || userData.role.toLowerCase(),
+        emergency_contact_name: newUser.emergency_contact_name || userData.emergency_contact_name,
+        emergency_contact_number: newUser.emergency_contact_number || userData.emergency_contact_number,
+        last_login: newUser.last_login || null,
+      };
+      
+      console.log('handleAddUser - Normalized user:', normalizedUser);
+      setUsers(prev => [...prev, normalizedUser]);
       
       setShowAddUser(false);
       alert('User added successfully!');
@@ -826,13 +890,22 @@ const Admin = () => {
   }, []);
 
   const handleUpdateUser = useCallback(async (userData) => {
+    console.log('handleUpdateUser - Starting with userData:', userData);
+    
     if (
       !userData.first_name ||
       !userData.last_name ||
       !userData.email ||
-      !userData.phone_number
+      !userData.phone_number ||
+      !userData.role
     ) {
       alert("Please fill all required fields.");
+      return;
+    }
+
+    const validRoles = ['user', 'operator', 'admin'];
+    if (!validRoles.includes(userData.role.toLowerCase())) {
+      alert("Please select a valid role.");
       return;
     }
 
@@ -852,25 +925,56 @@ const Admin = () => {
       setError(null);
       
       const userPayload = {
-        first_name: userData.first_name,
-        last_name: userData.last_name,
-        full_name: `${userData.first_name} ${userData.last_name}`.trim(),
-        email: userData.email,
-        phone_number: userData.phone_number,
-        role: userData.role,
-        emergency_contact_name: userData.emergency_contact_name,
-        emergency_contact_number: userData.emergency_contact_number,
+        first_name: userData.first_name.trim(),
+        last_name: userData.last_name.trim(),
+        full_name: `${userData.first_name.trim()} ${userData.last_name.trim()}`.trim(),
+        email: userData.email.trim(),
+        phone_number: userData.phone_number.trim(),
+        role: userData.role.toLowerCase(), // Ensure role is properly sent
+        emergency_contact_name: userData.emergency_contact_name?.trim() || '',
+        emergency_contact_number: userData.emergency_contact_number?.trim() || '',
       };
 
+      console.log('handleUpdateUser - Sending user update request:', {
+        userId: editingUser.id,
+        payload: userPayload
+      });
+
       const response = await userAPI.updateUser(editingUser.id, userPayload);
+      console.log('handleUpdateUser - User API Response:', response);
+
       const updatedUser = extractResponseData(response);
-      if (!updatedUser.full_name) {
-        updatedUser.full_name = `${updatedUser.first_name} ${updatedUser.last_name}`.trim();
+      console.log('handleUpdateUser - Extracted updated user:', updatedUser);
+
+      // Validate and normalize the updated user data
+      if (!updatedUser || !updatedUser.id) {
+        throw new Error('Invalid user data returned from API');
       }
-      
-      setUsers(prev => prev.map(usr => 
-        usr.id === editingUser.id ? updatedUser : usr
-      ));
+
+      // Normalize the response to ensure all required fields are present
+      const normalizedUser = {
+        id: updatedUser.id,
+        full_name: updatedUser.full_name || `${updatedUser.first_name || userData.first_name} ${updatedUser.last_name || userData.last_name}`.trim(),
+        first_name: updatedUser.first_name || userData.first_name,
+        last_name: updatedUser.last_name || userData.last_name,
+        email: updatedUser.email || userData.email,
+        phone_number: updatedUser.phone_number || userData.phone_number,
+        role: updatedUser.role || userData.role.toLowerCase(), // Ensure role is preserved
+        emergency_contact_name: updatedUser.emergency_contact_name || userData.emergency_contact_name || '',
+        emergency_contact_number: updatedUser.emergency_contact_number || userData.emergency_contact_number || '',
+        last_login: updatedUser.last_login || null,
+      };
+
+      console.log('handleUpdateUser - Normalized user:', normalizedUser);
+
+      // Update the users state
+      setUsers(prev => {
+        const newUsers = prev.map(usr => 
+          usr.id === editingUser.id ? normalizedUser : usr
+        );
+        console.log('handleUpdateUser - Updated users state:', newUsers);
+        return newUsers;
+      });
       
       setEditingUser(null);
       setShowEditUser(false);
@@ -879,13 +983,32 @@ const Admin = () => {
       let errorMessage = 'Failed to update user';
       
       if (err instanceof ApiError) {
-        errorMessage = err.message;
-      } else if (typeof err === 'object' && err.message) {
-        errorMessage = err.message;
+        if (err.status === 400) {
+          errorMessage = 'Invalid user data provided';
+        } else if (err.status === 401) {
+          errorMessage = 'Unauthorized: Please log in again';
+          window.location.href = '/login';
+          return;
+        } else if (err.status === 404) {
+          errorMessage = 'User not found';
+        } else if (err.status === 422 && err.data?.detail) {
+          errorMessage = Array.isArray(err.data.detail)
+            ? err.data.detail.map(detail => detail.msg).join('; ')
+            : err.data.detail || err.message;
+        } else {
+          errorMessage = err.data?.detail || err.message || 'Unknown error';
+        }
+      } else {
+        errorMessage = err.message || 'Network error';
       }
       
       setError(errorMessage);
-      console.error('Error updating user:', err);
+      console.error('Error updating user:', {
+        message: err.message,
+        status: err.status,
+        data: err.data,
+        response: err.response?.data
+      });
     } finally {
       setLoading(false);
     }
@@ -899,6 +1022,7 @@ const Admin = () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('handleDeleteUser - Deleting user:', userId);
       await userAPI.delete(userId);
       setUsers(prev => prev.filter(usr => usr.id !== userId));
       alert('User deleted successfully!');
@@ -921,6 +1045,7 @@ const Admin = () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('handleSaveSettings - Sending settings:', settings);
       await settingsAPI.update(settings);
       alert('Settings saved successfully!');
     } catch (err) {
@@ -958,6 +1083,7 @@ const Admin = () => {
           throw new Error('Invalid export type');
       }
 
+      console.log(`handleExport - Export ${type} response:`, response);
       // Handle the response data
       const blob = new Blob([response.data], {
         type: format === 'csv' ? 'text/csv' : 'application/pdf'
@@ -998,8 +1124,9 @@ const Admin = () => {
     return password;
   }, []);
 
-  // Helper functions with stable callbacks
+  // Helper functions with stable callbacks - FIXED startEditUser
   const startEditDevice = useCallback((device) => {
+    console.log('startEditDevice - Device to edit:', device);
     setEditingDevice({
       device_id: device.device_id || '',
       site_name: device.site_name || '',
@@ -1013,6 +1140,9 @@ const Admin = () => {
   }, []);
 
   const startEditUser = useCallback((user) => {
+    console.log('startEditUser - User to edit:', user);
+    console.log('startEditUser - Original user role:', user.role);
+    
     // Split full_name if first_name and last_name are not provided
     let first_name = user.first_name || '';
     let last_name = user.last_name || '';
@@ -1022,17 +1152,27 @@ const Admin = () => {
       last_name = names.slice(1).join(' ') || '';
     }
 
-    setEditingUser({
+    // Normalize role to lowercase and ensure it's valid
+    const normalizedRole = user.role ? user.role.toLowerCase() : 'user';
+    const validRoles = ['user', 'operator', 'admin'];
+    const finalRole = validRoles.includes(normalizedRole) ? normalizedRole : 'user';
+
+    const editingUserData = {
       id: user.id,
       first_name,
       last_name,
       full_name: `${first_name} ${last_name}`.trim(),
       email: user.email || '',
       phone_number: user.phone_number || user.phone || '',
-      role: user.role ? user.role.toLowerCase() : 'user',
+      role: finalRole, // Use normalized and validated role
       emergency_contact_name: user.emergency_contact_name || '',
       emergency_contact_number: user.emergency_contact_number || '',
-    });
+    };
+
+    console.log('startEditUser - Setting editingUser with role:', editingUserData.role);
+    console.log('startEditUser - Complete editingUser data:', editingUserData);
+    
+    setEditingUser(editingUserData);
     setShowEditUser(true);
   }, []);
 
@@ -1069,7 +1209,7 @@ const Admin = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                {["Device ID" , "Device Name", "Assigned User", "Status", "Latitude", "Longitude", "Actions"].map(
+                {["Device ID", "Device Name", "Assigned User", "Status", "Latitude", "Longitude", "Actions"].map(
                   (header) => (
                     <th
                       key={header}
@@ -1091,13 +1231,13 @@ const Admin = () => {
                   <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{device.latitude}</td>
                   <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{device.longitude}</td>
                   <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">
-                    <button 
+                    {/* <button 
                       onClick={() => handleDeleteDevice(device.device_id)}
                       className="text-red-600 hover:text-red-900" 
                       title="Delete Device"
                     >
                       <Trash2 size={16} />
-                    </button>
+                    </button> */}
                     <button
                       onClick={() => startEditDevice(device)}
                       className="text-blue-600 hover:text-blue-900 ml-3"
@@ -1189,7 +1329,7 @@ const Admin = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                {["Name", "Email", "Phone", "Role", "Last Login", "Actions"].map(
+                {["Name", "Email", "Phone", "Role", "Actions"].map(
                   (header) => (
                     <th
                       key={header}
@@ -1205,12 +1345,12 @@ const Admin = () => {
               {users.map((user) => (
                 <tr key={user.id}>
                   <td className="px-6 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {user.full_name}
+                    {user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'N/A'}
                   </td>
-                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{user.email}</td>
-                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{user.phone_number || user.phone}</td>
-                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{user.role}</td>
-                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{user.last_login || 'N/A'}</td>
+                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{user.email || 'N/A'}</td>
+                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{user.phone_number || user.phone || 'N/A'}</td>
+                  <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{user.role || 'N/A'}</td>
+                  {/* <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">{user.last_login || 'N/A'}</td> */}
                   <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-700">
                     <button
                       onClick={() => startEditUser(user)}
@@ -1219,13 +1359,13 @@ const Admin = () => {
                     >
                       <Edit size={16} />
                     </button>
-                    <button 
+                    {/* <button 
                       onClick={() => handleDeleteUser(user.id)}
                       className="text-red-600 hover:text-red-900" 
                       title="Delete User"
                     >
                       <Trash2 size={16} />
-                    </button>
+                    </button> */}
                   </td>
                 </tr>
               ))}
@@ -1258,13 +1398,18 @@ const Admin = () => {
         </Modal>
       )}
 
-      {/* Edit User Modal */}
-      {showEditUser && (
-        <Modal onClose={() => {
-          setShowEditUser(false);
-          setEditingUser(null);
-        }} title={`Edit User ${editingUser?.full_name || `${editingUser?.first_name || ''} ${editingUser?.last_name || ''}`.trim()}`}>
+      {/* Edit User Modal - FIXED with proper key to force re-render */}
+      {showEditUser && editingUser && (
+        <Modal 
+          key={`edit-user-${editingUser.id}-${editingUser.role}`} // Force re-render when user changes
+          onClose={() => {
+            setShowEditUser(false);
+            setEditingUser(null);
+          }} 
+          title={`Edit User ${editingUser?.full_name || `${editingUser?.first_name || ''} ${editingUser?.last_name || ''}`.trim()}`}
+        >
           <UserForm
+            key={`user-form-${editingUser.id}-${editingUser.role}`} // Force UserForm re-render
             initialData={{
               id: editingUser.id,
               first_name: editingUser.first_name || '',
@@ -1272,7 +1417,7 @@ const Admin = () => {
               full_name: `${editingUser.first_name || ''} ${editingUser.last_name || ''}`.trim(),
               email: editingUser.email || '',
               phone_number: editingUser.phone_number || editingUser.phone || '',
-              role: editingUser.role ? editingUser.role.toLowerCase() : 'user',
+              role: editingUser.role || 'user',
               emergency_contact_name: editingUser.emergency_contact_name || '',
               emergency_contact_number: editingUser.emergency_contact_number || '',
               password: "",
@@ -1290,152 +1435,6 @@ const Admin = () => {
       )}
     </div>
   );
-
-  // System Settings component
-  // const SystemSettings = () => (
-  //   <div className="space-y-6">
-  //     {error && <ErrorMessage message={error} onClose={() => setError(null)} />}
-      
-  //     <h2 className="text-xl font-semibold text-gray-900">System Settings</h2>
-      
-  //     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-  //       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-  //         <h3 className="text-lg font-medium text-gray-900 mb-4">Alert Configuration</h3>
-  //         <div className="space-y-4">
-  //           <div>
-  //             <label className="block text-sm font-medium text-gray-700 mb-2">
-  //               SOS Alert Threshold (seconds)
-  //             </label>
-  //             <input
-  //               type="number"
-  //               value={settings.sosAlertThreshold}
-  //               onChange={(e) => setSettingsState({...settings, sosAlertThreshold: parseInt(e.target.value)})}
-  //               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-  //             />
-  //           </div>
-  //           <div>
-  //             <label className="block text-sm font-medium text-gray-700 mb-2">
-  //               Low Battery Threshold (%)
-  //             </label>
-  //             <input
-  //               type="number"
-  //               value={settings.lowBatteryThreshold}
-  //               onChange={(e) => setSettingsState({...settings, lowBatteryThreshold: parseInt(e.target.value)})}
-  //               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-  //             />
-  //           </div>
-  //           <div>
-  //             <label className="block text-sm font-medium text-gray-700 mb-2">
-  //               Vibration Sensitivity
-  //             </label>
-  //             <select 
-  //               value={settings.vibrationSensitivity}
-  //               onChange={(e) => setSettingsState({...settings, vibrationSensitivity: e.target.value})}
-  //               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-  //             >
-  //               <option>Low</option>
-  //               <option>Medium</option>
-  //               <option>High</option>
-  //             </select>
-  //           </div>
-  //         </div>
-  //       </div>
-
-  //       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-  //         <h3 className="text-lg font-medium text-gray-900 mb-4">Network Configuration</h3>
-  //         <div className="space-y-4">
-  //           <div>
-  //             <label className="block text-sm font-medium text-gray-700 mb-2">
-  //               LoRaWAN Gateway IP
-  //             </label>
-  //             <input
-  //               type="text"
-  //               value={settings.lorawanGatewayIP}
-  //               onChange={(e) => setSettingsState({...settings, lorawanGatewayIP: e.target.value})}
-  //               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-  //             />
-  //           </div>
-  //           <div>
-  //             <label className="block text-sm font-medium text-gray-700 mb-2">
-  //               Data Update Interval (seconds)
-  //             </label>
-  //             <input
-  //               type="number"
-  //               value={settings.dataUpdateInterval}
-  //               onChange={(e) => setSettingsState({...settings, dataUpdateInterval: parseInt(e.target.value)})}
-  //               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-  //             />
-  //           </div>
-  //           <div>
-  //             <label className="block text-sm font-medium text-gray-700 mb-2">
-  //               Backup Server URL
-  //             </label>
-  //             <input
-  //               type="url"
-  //               value={settings.backupServerURL}
-  //               onChange={(e) => setSettingsState({...settings, backupServerURL: e.target.value})}
-  //               placeholder="https://backup.rescuelink.com"
-  //               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-  //             />
-  //           </div>
-  //         </div>
-  //       </div>
-  //     </div>
-
-  //     <div className="flex justify-end">
-  //       <button 
-  //         onClick={handleSaveSettings}
-  //         disabled={loading}
-  //         className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-  //       >
-  //         {loading ? <Loader className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-  //         Save Settings
-  //       </button>
-  //     </div>
-  //   </div>
-  // );
-
-  // // Data Management component
-  // const DataManagement = () => (
-  //   <div className="space-y-6">
-  //     {error && <ErrorMessage message={error} onClose={() => setError(null)} />}
-      
-  //     <h2 className="text-xl font-semibold text-gray-900">Data Management</h2>
-      
-  //     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-  //       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-  //         <h3 className="text-lg font-medium text-gray-900 mb-4">Export Data</h3>
-  //         <p className="text-gray-600 mb-4">Download historical data for analysis and reporting.</p>
-  //         <div className="space-y-3">
-  //           <button 
-  //             onClick={() => handleExport('devices', 'csv')}
-  //             disabled={loading}
-  //             className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-  //           >
-  //             <Download className="h-4 w-4 mr-2" />
-  //             Export Device Data (CSV)
-  //           </button>
-  //           <button 
-  //             onClick={() => handleExport('alerts', 'csv')}
-  //             disabled={loading}
-  //             className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-  //           >
-  //             <Download className="h-4 w-4 mr-2" />
-  //             Export Alert Data (CSV)
-  //           </button>
-  //           <button 
-  //             onClick={() => handleExport('reports', 'pdf')}
-  //             disabled={loading}
-  //             className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-  //           >
-  //             <Download className="h-4 w-4 mr-2" />
-  //             Export Reports (PDF)
-  //           </button>
-  //         </div>
-  //       </div>
-  //     </div>
-  //   </div>
-  // );
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -1463,8 +1462,6 @@ const Admin = () => {
       <div className="bg-white rounded-b-lg shadow p-6">
         {activeTab === "devices" && <DeviceManagement />}
         {activeTab === "users" && <UserManagement />}
-        {/* {activeTab === "settings" && <SystemSettings />}
-        {activeTab === "data" && <DataManagement />} */}
       </div>
     </div>
   );
